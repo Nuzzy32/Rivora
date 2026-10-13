@@ -1,0 +1,57 @@
+{
+  "sections": [
+    {
+      "title": "Sebelum",
+      "heading": "Sebelum banjir",
+      "source": "Rujukan: BNPB, Buku Saku Tanggap Tangkas Tangguh Menghadapi Bencana",
+      "steps": [
+        ["route", "Kenali jalur evakuasi dan posko terdekat dari rumah, kampus, atau kantor."],
+        ["call", "Simpan nomor darurat: 112, BPBD Kota Surabaya, Damkar."],
+        ["backpack", "Siapkan Tas Siaga dan taruh di tempat yang mudah dijangkau."],
+        ["description", "Simpan dokumen penting di plastik kedap air."],
+        ["cleaning", "Bersihkan selokan dan saluran air di sekitar rumah."],
+        ["cloud", "Pantau prakiraan BMKG dan kabar resmi saat musim hujan."],
+        ["groups", "Sepakati titik kumpul dengan keluarga kalau terpisah."]
+      ]
+    },
+    {
+      "title": "Saat",
+      "heading": "Saat banjir",
+      "source": "Rujukan: BNPB, Buku Saku Tanggap Tangkas Tangguh Menghadapi Bencana",
+      "steps": [
+        ["power", "Matikan listrik dari meteran dan tutup aliran gas."],
+        ["upstairs", "Pindahkan barang berharga dan dokumen ke tempat tinggi."],
+        ["directions_run", "Segera mengungsi kalau air terus naik. Ikuti arahan petugas."],
+        ["block", "Jangan menerobos genangan berarus, baik jalan kaki maupun naik motor."],
+        ["bolt", "Jauhi kabel listrik, tiang, dan gardu yang terendam."],
+        ["accessible", "Dahulukan anak, lansia, ibu hamil, dan penyandang disabilitas."],
+        ["sos", "Kalau terjebak, hubungi 112 dan beri tahu lokasimu."]
+      ]
+    },
+    {
+      "title": "Setelah",
+      "heading": "Setelah banjir",
+      "source": "Rujukan: BNPB, Buku Saku Tanggap Tangkas Tangguh Menghadapi Bencana",
+      "steps": [
+        ["campaign", "Pulang setelah ada pengumuman aman dari petugas."],
+        ["electrical_services", "Periksa instalasi listrik sebelum dinyalakan. Minta bantuan petugas PLN kalau ragu."],
+        ["cleaning", "Bersihkan rumah memakai sarung tangan dan sepatu bot."],
+        ["no_food", "Buang makanan yang sudah terendam air banjir."],
+        ["water", "Rebus air minum atau pakai air kemasan."],
+        ["pest", "Waspadai hewan berbisa yang terbawa air."],
+        ["medical", "Periksakan diri bila demam, diare, atau ada luka terbuka."]
+      ]
+    }
+  ],
+  "bag": [
+    "Dokumen penting (KTP, KK, ijazah) dalam plastik",
+    "Air minum dan makanan siap santap untuk 3 hari",
+    "Obat pribadi dan kotak P3K",
+    "Senter dan baterai cadangan",
+    "Powerbank dan kabel pengisi daya",
+    "Pakaian ganti dan selimut",
+    "Uang tunai secukupnya",
+    "Peluit untuk minta tolong",
+    "Masker dan perlengkapan kebersihan"
+  ]
+}
