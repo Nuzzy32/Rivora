@@ -488,6 +488,14 @@ class Api {
     ];
   });
 
+  /// Posisi satu titik genangan (untuk tautan bagikan / deep link). null = sudah tidak ada.
+  static Future<LatLng?> pointPos(int id) => _call(() async {
+    final rows = await _db.rpc('flood_point', params: {'point_id': id}) as List;
+    if (rows.isEmpty) return null;
+    final r = rows.first as Map<String, dynamic>;
+    return LatLng((r['lat'] as num).toDouble(), (r['lng'] as num).toDouble());
+  });
+
   /// Foto laporan yang sudah disetujui: (path, signed URL 1 jam). Path dipakai untuk melaporkan foto.
   static Future<List<(String, String)>> pointPhotos(
     int pointId,

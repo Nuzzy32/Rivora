@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -12,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart'
 import 'package:url_launcher/url_launcher.dart';
 
 import 'data.dart';
+import 'screens/share.dart' show pointLink;
 import 'theme.dart';
 
 enum Scr {
@@ -176,6 +178,17 @@ class AppState extends ChangeNotifier {
       screen = Scr.map;
       locate(ask: false);
     }
+    // Tautan bagikan: aplikasi dibuka dari link (dingin) atau saat sedang berjalan.
+    final links = AppLinks();
+    void onLink(Uri u) {
+      final id = u.host == 'titik'
+          ? int.tryParse(u.pathSegments.firstOrNull ?? '')
+          : null;
+      if (id != null) openPointLink(id);
+    }
+
+    links.getInitialLink().then((u) => u == null ? null : onLink(u));
+    links.uriLinkStream.listen(onLink);
     Supabase.instance.client.auth.onAuthStateChange.listen((d) {
       if (d.event == AuthChangeEvent.passwordRecovery) {
         recovery = true;
@@ -483,6 +496,19 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deep link `com.rivora.sigapbanjir://titik/ID` (tombol di halaman bagikan).
+  Future<void> openPointLink(int id) async {
+    try {
+      final pos = await Api.pointPos(id);
+      if (pos == null) return showToast('Titik genangan ini sudah tidak ada');
+      mapCenter = pos;
+      await loadPoints(pos);
+      openPoint(id);
+    } on ApiError catch (e) {
+      showToast(e.message);
+    }
+  }
+
   void openPoint(int id) {
     final p = points.where((x) => x.id == id).firstOrNull;
     if (p == null) return showToast('Lokasi ini sudah tidak ada di peta');
@@ -632,12 +658,19 @@ class AppState extends ChangeNotifier {
   }
 
   /// PRD US-15: tanpa nama pelapor, koordinat pelapor, atau foto.
-  Future<void> share(FloodPoint p) async {
+  Future<void> share(FloodPoint p, {String? imagePath}) async {
     final v = vers[p.verification]!.label;
     final text = p.receded
         ? '${p.name} sudah surut sejak ${hm(p.recededAt!)} · ${p.source}. Cek kondisi terbaru di aplikasi SIGAP Banjir.'
         : '${p.name}, Kec. ${p.district}: tergenang ${depths[p.depth].label.toLowerCase()} (${depths[p.depth].cm}) · '
               '${p.stale ? 'Perlu Konfirmasi · ' : ''}$v · diperbarui ${hm(p.updatedAt)} · sumber ${p.source}. Cek kondisi terbaru di aplikasi SIGAP Banjir.';
-    await SharePlus.instance.share(ShareParams(text: text));
+    await SharePlus.instance.share(
+      ShareParams(
+        text: '$text\n${pointLink(p.id)}',
+        files: imagePath == null
+            ? null
+            : [XFile(imagePath, mimeType: 'image/png')],
+      ),
+    );
   }
 }

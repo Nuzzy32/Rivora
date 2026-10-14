@@ -10,6 +10,7 @@ import '../data.dart';
 import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
+import 'share.dart';
 
 /// M02: peta beranda.
 class MapScreen extends StatefulWidget {
@@ -1578,7 +1579,7 @@ class PointSheet extends StatelessWidget {
                 height: 48,
                 fontSize: 14,
                 fg: C.blueInk,
-                onTap: () => app.share(p),
+                onTap: () => openShare(context, p),
               ),
             ),
             Expanded(
