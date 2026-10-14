@@ -6,3 +6,6 @@
 .env.keys
 .env.local
 .env.*.local
+
+# Unduhan data mentah (build_faskes.py)
+data/.cache/
