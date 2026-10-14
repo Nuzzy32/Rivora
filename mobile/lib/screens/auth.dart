@@ -32,7 +32,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _pw = TextEditingController();
   bool _register = false, _show = false, _busy = false, _locked = false;
   Map<String, String> _err = {};
-  String? _formErr;
+  String? _formErr,
+      _sentTo; // _sentTo: email tujuan link konfirmasi (layar sukses daftar)
 
   @override
   void dispose() {
@@ -61,14 +62,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ? await Api.register(_name.text.trim(), _mail.text.trim(), _pw.text)
           : await Api.login(_mail.text.trim(), _pw.text);
       if (u == null) {
-        // Konfirmasi email wajib. Supabase menjawab sama untuk email yang sudah terdaftar
-        // (tanpa mengirim apa pun) agar daftar akun tidak bisa ditebak, jadi pesannya mencakup keduanya.
-        return setState(() {
-          _register = false;
-          _formErr =
-              'Cek email ${_mail.text.trim()} dan buka link konfirmasinya, lalu masuk. '
-              'Tidak ada email masuk? Mungkin email ini sudah terdaftar: masuk dengan kata sandi lama atau pakai "Lupa kata sandi?".';
-        });
+        // Konfirmasi email wajib: tampilkan layar sukses + langkah berikutnya.
+        return setState(() => _sentTo = _mail.text.trim());
       }
       await app.signedIn(u, isNew: _register);
     } on ApiError catch (x) {
@@ -84,6 +79,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_sentTo != null) {
+      return _SignupDone(
+        email: _sentTo!,
+        password: _pw.text,
+        onEdit: () => setState(() => _sentTo = null),
+      );
+    }
     final reason = app.authReason;
     final guestTo =
         const [Scr.report, Scr.watch, Scr.notif].contains(app.authReturn)
@@ -519,6 +521,226 @@ class _ForgotScreenState extends State<ForgotScreen> {
           const SizedBox(height: 20),
           ...body,
         ]),
+      ),
+    );
+  }
+}
+
+/// Setelah daftar: perayaan kecil + langkah konfirmasi email, lalu masuk dengan satu ketukan.
+class _SignupDone extends StatefulWidget {
+  final String email, password;
+  final VoidCallback onEdit;
+  const _SignupDone({
+    required this.email,
+    required this.password,
+    required this.onEdit,
+  });
+
+  @override
+  State<_SignupDone> createState() => _SignupDoneState();
+}
+
+class _SignupDoneState extends State<_SignupDone> {
+  bool _busy = false;
+  String? _note;
+  DateTime? _resentAt;
+
+  Future<void> _login() async {
+    setState(() {
+      _busy = true;
+      _note = null;
+    });
+    try {
+      await app.signedIn(
+        await Api.login(widget.email, widget.password),
+        isNew: true,
+      );
+    } on ApiError catch (e) {
+      if (mounted) {
+        setState(
+          () => _note = e.code == 'email_not_confirmed'
+              ? 'Email belum terkonfirmasi. Buka link di email dulu, lalu coba lagi.'
+              : e.message,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _resend() async {
+    final last = _resentAt;
+    if (last != null && DateTime.now().difference(last).inSeconds < 60) {
+      return setState(() => _note = 'Tunggu sebentar sebelum mengirim ulang.');
+    }
+    try {
+      await Api.resendConfirmation(widget.email);
+      setState(() {
+        _resentAt = DateTime.now();
+        _note = 'Link baru sudah dikirim ke ${widget.email}.';
+      });
+    } on ApiError catch (e) {
+      setState(() => _note = e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget step(int n, String text) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            decoration: const BoxDecoration(
+              color: C.blueTint,
+              shape: BoxShape.circle,
+            ),
+            child: Center(child: Text('$n', style: t(12, w7, C.blueInk))),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(text, style: t(14, FontWeight.w400, C.body, 1.5)),
+          ),
+        ],
+      ),
+    );
+    return DecoratedBox(
+      decoration: _bg,
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          topInset(context) + 40,
+          20,
+          tabSpace(context),
+        ),
+        children: [
+          Center(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: dur(context, 700),
+              curve: Curves.elasticOut,
+              builder: (_, v, child) =>
+                  Transform.scale(scale: .6 + .4 * v, child: child),
+              child: SizedBox(
+                width: 132,
+                height: 132,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        gradient: gBlueSoft,
+                        shape: BoxShape.circle,
+                        boxShadow: soft(.35, 36, 18, C.blue),
+                      ),
+                      child: const Icon(
+                        Icons.mark_email_unread_rounded,
+                        size: 56,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 4,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: C.green,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          size: 24,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ...stagger([
+            Text(
+              'Pendaftaran berhasil!',
+              textAlign: TextAlign.center,
+              style: t(26, w7, C.ink, 1.25),
+            ),
+            const SizedBox(height: 8),
+            Text.rich(
+              TextSpan(
+                text: 'Satu langkah lagi. Kami mengirim link konfirmasi ke ',
+                style: t(14, FontWeight.w400, C.body, 1.5),
+                children: [
+                  TextSpan(text: widget.email, style: t(14, w6, C.ink, 1.5)),
+                  const TextSpan(text: '.'),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Box(
+              radius: 24,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+              child: Column(
+                children: [
+                  step(
+                    1,
+                    'Buka email konfirmasi yang baru masuk. Cek juga folder Spam atau Promosi.',
+                  ),
+                  step(2, 'Ketuk link konfirmasi di email itu.'),
+                  step(3, 'Kembali ke sini, lalu ketuk tombol di bawah.'),
+                ],
+              ),
+            ),
+            if (_note != null) ...[
+              const SizedBox(height: 12),
+              Note(_note!, icon: Icons.info_outline_rounded),
+            ],
+            const SizedBox(height: 20),
+            _busy
+                ? const Btn('Memeriksa…', color: Color(0xFFC3C8D4))
+                : Btn.primary('Sudah konfirmasi, masuk', onTap: _login),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: _resend,
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    child: Text(
+                      'Kirim ulang email',
+                      style: t(13, w6, C.blueInk),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: widget.onEdit,
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    child: Text('Ganti email', style: t(13, w6, C.sub)),
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              'Tidak menerima email sama sekali? Mungkin email ini sudah pernah terdaftar. Coba masuk dengan kata sandi lama.',
+              textAlign: TextAlign.center,
+              style: t(12, FontWeight.w400, C.muted, 1.5),
+            ),
+          ]),
+        ],
       ),
     );
   }

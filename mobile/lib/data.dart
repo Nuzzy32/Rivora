@@ -11,8 +11,11 @@ const startCenter = LatLng(-6.1754, 106.8272);
 const distance = Distance();
 double meters(LatLng a, LatLng b) => distance.as(LengthUnit.Meter, a, b);
 
-/// Redirect tautan email (reset kata sandi, konfirmasi akun) kembali ke aplikasi.
+/// Redirect tautan reset kata sandi kembali ke aplikasi (harus dibuka di HP yang ada aplikasinya).
 const authCallback = 'com.rivora.sigapbanjir://login-callback';
+
+/// Konfirmasi akun/email baru: halaman web yang bisa dibuka di perangkat mana pun.
+const emailConfirmUrl = 'https://sigap-banjir-panel.vercel.app/konfirmasi.html';
 
 const depthKeys = ['none', 'ankle', 'knee', 'waist', 'chest'];
 int depthIndex(Object? v) => depthKeys.indexOf(v as String).clamp(0, 4);
@@ -631,12 +634,21 @@ class Api {
           email: email,
           password: pw,
           data: {'name': name},
-          emailRedirectTo: authCallback,
+          emailRedirectTo: emailConfirmUrl,
         );
         return r.session == null ? null : await currentUser();
       });
 
   static Future<void> logout() => _db.auth.signOut();
+
+  /// Kirim ulang link konfirmasi pendaftaran.
+  static Future<void> resendConfirmation(String email) => _call(
+    () => _db.auth.resend(
+      type: OtpType.signup,
+      email: email,
+      emailRedirectTo: emailConfirmUrl,
+    ),
+  );
 
   /// Pesan di layar selalu sama, terdaftar atau tidak (PRD US-06).
   static Future<void> forgotPassword(String email) => _call(
@@ -662,7 +674,7 @@ class Api {
     if (email != u.email) {
       await _db.auth.updateUser(
         UserAttributes(email: email),
-        emailRedirectTo: authCallback,
+        emailRedirectTo: emailConfirmUrl,
       );
     }
     return (await currentUser())!;
