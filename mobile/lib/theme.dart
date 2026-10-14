@@ -162,7 +162,7 @@ const vers = {
     Icons.shield_rounded,
     C.violetInk,
     C.violetTint,
-    'Dari kanal resmi Pemkot / BPBD',
+    'Dari kanal resmi pemda / BPBD',
   ),
   'verified': VerStyle(
     'Terverifikasi',
@@ -738,6 +738,13 @@ double tabSpace(BuildContext c) => tabTop(c) + 24;
 /// Peta dasar. Dengan MAPBOX_TOKEN (env.json): gaya Mapbox Streets yang bersih, penanda genangan
 /// menonjol (gratis s.d. 200 rb tile/bulan). Tanpa token: OSM standar yang diredupkan.
 const _mapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
+
+/// Gaya kustom "SIGAP Banjir Light" (map-style/sigap-light.json, diunggah ke Mapbox Studio):
+/// isi MAPBOX_STYLE = "username/style_id". Kosong = Mapbox Streets.
+const _mapboxStyle = String.fromEnvironment(
+  'MAPBOX_STYLE',
+  defaultValue: 'mapbox/streets-v12',
+);
 const _softOsm = ColorFilter.matrix([
   0.52, 0.42, 0.04, 0, 6, //
   0.12, 0.83, 0.04, 0, 8,
@@ -753,7 +760,7 @@ Widget baseTiles(BuildContext c) => _mapboxToken.isEmpty
       )
     : TileLayer(
         urlTemplate:
-            'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}{r}?access_token=$_mapboxToken',
+            'https://api.mapbox.com/styles/v1/$_mapboxStyle/tiles/{z}/{x}/{y}{r}?access_token=$_mapboxToken',
         tileDimension: 512,
         zoomOffset: -1,
         retinaMode: RetinaMode.isHighDensity(c),
