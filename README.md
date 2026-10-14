@@ -89,6 +89,7 @@ web/                    Panel web Verifikator & Admin (Vite + React + Leaflet)
 supabase/
   migrations/           Skema, RLS, trigger, RPC, storage, jadwal cron
   functions/            Edge Function bmkg-forecast
+  data/build_regions.py Pembangun migrasi data wilayah se-Indonesia
   seed.sql              Faskes & kontak darurat awal
 docs/screenshots/
 ```
@@ -163,7 +164,8 @@ Tes membuka semua layar beserta transisinya di layar 402 dp dan 360 dp dengan uk
 ## Sumber data
 
 - Prakiraan cuaca: **BMKG** (`api.bmkg.go.id`). Sumbernya dicantumkan di setiap tampilan prakiraan.
-- Peta: **© OpenStreetMap contributors**.
+- Peta: **© Mapbox** dan **© OpenStreetMap contributors**.
+- Kode & titik tengah wilayah se-Indonesia (Kepmendagri 2025): **[cahyadsn/wilayah](https://github.com/cahyadsn/wilayah)** dan **[cahyadsn/wilayah_boundaries](https://github.com/cahyadsn/wilayah_boundaries)**, lisensi MIT © cahya dsn. Dibangun ulang dengan `supabase/data/build_regions.py`.
 - Radar hujan: **Rain Viewer**, untuk penggunaan non-komersial.
 - `seed.sql` hanya berisi faskes dan kontak darurat. Titik genangan berasal dari laporan warga atau status Resmi, posko diisi Admin dari data BPBD lewat panel. Cek alamat dan nomor ke sumber resmi sebelum rilis.
 
