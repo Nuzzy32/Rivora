@@ -44,6 +44,9 @@ SIGAP Banjir menjawab satu pertanyaan: **jalan atau lokasi ini aman dilalui atau
 | **Verifikasi per wilayah** | Verifikator ditugaskan per kab/kota dan hanya bisa meninjau laporan di wilayahnya. Di kab/kota yang belum punya verifikator, titik otomatis menjadi *Terverifikasi* bila ≥ 3 akun berbeda melaporkannya dalam 1 jam (berlabel "terverifikasi otomatis"). Admin melihat daftar wilayah tanpa verifikator di dasbor. |
 | **Moderasi foto** | Warga bisa melaporkan foto yang tidak pantas, bukan genangan, atau memuat data pribadi. Foto yang dilaporkan 3 akun disembunyikan sementara sampai petugas memutuskan di panel. |
 | **Data se-Indonesia** | 83 ribu desa/kelurahan untuk pencarian dan prakiraan, 6.200+ RS dan puskesmas dari OpenStreetMap, serta impor CSV di panel untuk nomor BPBD dan posko dari sumber resmi. |
+| **Real-time** | Titik genangan baru, berubah, atau surut langsung muncul di peta, dan notifikasi baru langsung masuk selama aplikasi terbuka (Supabase Realtime, tetap mengikuti RLS). |
+| **Lapor saat offline** | Saat banjir sinyal sering hilang: laporan (foto + lokasi) disimpan di HP dan dikirim otomatis begitu online. Laporan yang tertahan lebih dari 6 jam dibatalkan agar tidak menyesatkan. |
+| **Bagikan ke WhatsApp** | Kartu gambar (lokasi, ketinggian, verifikasi, waktu, sumber) + tautan ke halaman publik titik itu, yang bisa dibuka tanpa aplikasi dan punya tombol "Buka di aplikasi". |
 | **Mode Tamu** | Peta, prakiraan, dan posko bisa dilihat tanpa daftar. Login hanya diminta untuk melapor dan memantau. |
 
 ## Arsitektur
@@ -99,11 +102,14 @@ mobile/                 Aplikasi Flutter
 web/                    Panel web Verifikator & Admin (Vite + React + Leaflet)
   src/pages/            Dasbor, antrean, status lokasi, posko/kontak, pengguna
   public/privasi.html   Kebijakan privasi (publik, tanpa login)
+  titik.html            Halaman publik satu titik genangan (tautan dari tombol Bagikan)
 supabase/
   migrations/           Skema, RLS, trigger, RPC, storage, jadwal cron
   functions/            Edge Function bmkg-forecast
   data/build_regions.py Pembangun migrasi data wilayah se-Indonesia
   data/build_faskes.py  Pembangun migrasi RS & puskesmas dari OpenStreetMap
+  templates/            Template email bahasa Indonesia (konfirmasi, reset sandi, ganti email)
+  tests/                Tes migrasi di PGlite (Postgres + PostGIS dalam memori): npm install && npm test
   seed.sql              Faskes & kontak darurat awal
 docs/screenshots/
 ```
@@ -183,6 +189,7 @@ Android menandatangani dengan kunci upload dari `android/key.properties` (tidak 
 - [x] Panel web Verifikator & Admin: RPC dan log aktivitas di database
 - [x] Se-Indonesia: wilayah Kemendagri, prakiraan & peringatan dini per desa, verifikator per kab/kota, faskes OSM, impor CSV
 - [x] Moderasi: verifikasi otomatis oleh warga, laporkan foto
+- [x] Real-time, lapor saat offline, bagikan ke WhatsApp (kartu gambar + halaman publik + deep link)
 - [x] Cache peta offline setelah aplikasi ditutup: tile yang pernah dilihat (30 hari) dan data terakhir (titik, posko, kontak, area rawan, prakiraan)
 - [x] Siap rilis: ikon & splash, tanda tangan rilis, kebijakan privasi, laporan galat (Sentry, opsional)
 - [x] Panel web online: https://sigap-banjir-panel.vercel.app
