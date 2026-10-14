@@ -21,7 +21,7 @@ void main() {
           'rows': [
             {
               'name': 'BPBD Kota Surabaya',
-              'phone': '(031) 5312 144',
+              'phone': '(031) 99860466',
               'category': 'bpbd',
             },
           ],
