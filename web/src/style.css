@@ -117,8 +117,9 @@ select.input { padding: 0 10px; font-size: 13px }
 /* Login */
 .login { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) }
 .hero { margin: 20px; border-radius: 36px; background: linear-gradient(150deg, #AECDFF 0%, #5896FD 55%, #806EF8 120%); color: #fff; padding: 48px; display: flex; flex-direction: column; justify-content: space-between; min-height: calc(100vh - 40px) }
-.logo { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #AECDFF, #5896FD); display: flex; align-items: center; justify-content: center; color: #fff; flex: none }
-.logo.big { width: 44px; height: 44px; border-radius: 14px; background: rgba(255, 255, 255, .25) }
+.logo { width: 38px; height: 38px; border-radius: 12px; background: #fff; box-shadow: 0 4px 12px rgba(36, 98, 208, .15); display: flex; align-items: center; justify-content: center; flex: none }
+.logo img { width: 78%; height: 78%; object-fit: contain }
+.logo.big { width: 48px; height: 48px; border-radius: 14px }
 .tag { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 9px; background: rgba(255, 255, 255, .22) }
 .glass { padding: 14px 16px; border-radius: 20px; background: rgba(255, 255, 255, .2); border: 1px solid rgba(255, 255, 255, .4); display: flex; gap: 10px; align-items: center; font-size: 13px; font-weight: 500 }
 

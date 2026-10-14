@@ -48,19 +48,10 @@ class OnboardingScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 36,
+              Image.asset(
+                'assets/brand/logo-mark.png',
                 height: 36,
-                decoration: BoxDecoration(
-                  gradient: gBlueSoft,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: soft(.35, 16, 8, C.blue),
-                ),
-                child: const Icon(
-                  Icons.water_drop_rounded,
-                  size: 20,
-                  color: Colors.white,
-                ),
+                semanticLabel: 'Logo SIGAP Banjir',
               ),
               const SizedBox(width: 10),
               Expanded(child: Text('SIGAP Banjir', style: t(16, w7))),
