@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -280,39 +282,75 @@ class TabBar5 extends StatelessWidget {
       (Icons.person_outline_rounded, 'Akun', C.blue, () => app.go(Scr.account)),
       (Icons.sos_rounded, 'Darurat', C.red, () => app.go(Scr.emergency)),
     ];
-    return Container(
-      height: tabBarH,
-      margin: EdgeInsets.fromLTRB(16, 0, 16, tabGap(context)),
-      padding: const EdgeInsets.all((tabBarH - _d) / 2),
-      decoration: BoxDecoration(
-        color: C.blue,
-        borderRadius: BorderRadius.circular(tabBarH / 2),
-        boxShadow: soft(.30, 24, 10, C.blue),
-      ),
-      child: LayoutBuilder(
-        builder: (context, box) {
-          // Pil aktif mengisi sisa lebar setelah 3 tombol bulat + tombol Lapor.
-          final pill = box.maxWidth - 3 * (_d + _gap) - (_report + _gap);
-          return Row(
-            spacing: _gap,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              for (final (i, (icon, label, color, onTap)) in items.indexed)
-                i == 2
-                    ? _reportBtn(context, tab == i)
-                    : _tabItem(
-                        context,
-                        tab == i && tab != 2,
-                        icon,
-                        label,
-                        color,
-                        onTap,
-                        // Saat di layar Lapor tidak ada pil; semua tab lain tetap bulat.
-                        tab == 2 ? _d : pill,
-                      ),
-            ],
-          );
-        },
+    const r = BorderRadius.all(Radius.circular(tabBarH / 2));
+    // Kaca cair: isi di belakang di-blur, lapisan putih bening, bingkai tipis, dan kilau di tepi atas.
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, tabGap(context)),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: r,
+          boxShadow: soft(.18, 30, 12, const Color(0xFF1A2550)),
+        ),
+        child: ClipRRect(
+          borderRadius: r,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            child: Container(
+              height: tabBarH,
+              padding: const EdgeInsets.all((tabBarH - _d) / 2),
+              decoration: BoxDecoration(
+                borderRadius: r,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: .62),
+                    Colors.white.withValues(alpha: .40),
+                  ],
+                ),
+                border: Border.all(color: Colors.white.withValues(alpha: .75)),
+              ),
+              foregroundDecoration: BoxDecoration(
+                borderRadius: r,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: const Alignment(0, -.2),
+                  colors: [
+                    Colors.white.withValues(alpha: .45),
+                    Colors.white.withValues(alpha: 0),
+                  ],
+                ),
+              ),
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  // Pil aktif mengisi sisa lebar setelah 3 tombol bulat + tombol Lapor.
+                  final pill =
+                      box.maxWidth - 3 * (_d + _gap) - (_report + _gap);
+                  return Row(
+                    spacing: _gap,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (final (i, (icon, label, color, onTap))
+                          in items.indexed)
+                        i == 2
+                            ? _reportBtn(context, tab == i)
+                            : _tabItem(
+                                context,
+                                tab == i && tab != 2,
+                                icon,
+                                label,
+                                color,
+                                onTap,
+                                // Saat di layar Lapor tidak ada pil; semua tab lain tetap bulat.
+                                tab == 2 ? _d : pill,
+                              ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -380,7 +418,8 @@ class TabBar5 extends StatelessWidget {
             padding: const EdgeInsets.all(4),
             clipBehavior: Clip.hardEdge,
             decoration: BoxDecoration(
-              color: Colors.white,
+              // Tab aktif = tetesan kaca terang; tab lain menyatu dengan kaca.
+              color: Colors.white.withValues(alpha: on ? .92 : 0),
               borderRadius: BorderRadius.circular(_d / 2),
             ),
             child: Row(
@@ -391,7 +430,7 @@ class TabBar5 extends StatelessWidget {
                   height: _d - 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: on ? color : Colors.white,
+                    color: on ? color : Colors.white.withValues(alpha: 0),
                   ),
                   child: Icon(icon, size: 22, color: on ? Colors.white : idle),
                 ),
