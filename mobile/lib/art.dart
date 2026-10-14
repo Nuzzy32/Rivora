@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 /// Ilustrasi cuaca 3D lembut dari Wx.dc.html. Digambar di kanvas 100x100 lalu diskalakan.
 /// [phase] 0..1 menggerakkan awan mengambang, tetes jatuh, petir berkedip (dipakai [LiveWx]).
@@ -477,4 +478,38 @@ class _LiveWxState extends State<LiveWx> with SingleTickerProviderStateMixin {
       ),
     ),
   );
+}
+
+/// Animasi cuaca Lottie dari `assets/lottie/<kind>.json` (dibuat di LottieFiles Creator).
+/// Kalau file-nya belum ada, pakai ilustrasi bawaan [LiveWx] / [Wx]. Diam saat "Kurangi Gerakan".
+class WxAnim extends StatelessWidget {
+  final String kind;
+  final double size;
+  final bool live; // false = ilustrasi diam (mis. chip yang tidak terpilih)
+  const WxAnim(this.kind, {super.key, this.size = 100, this.live = true});
+
+  @override
+  Widget build(BuildContext context) {
+    // Saat diam pakai ilustrasi statis: di frame 0 Lottie, petir & tetes hujan belum terlihat.
+    if (!live || MediaQuery.disableAnimationsOf(context)) {
+      return Wx(kind, size: size);
+    }
+    // Kanvas Lottie 400x440 = kotak Wx 100x100 + ruang tetes di bawah (sama seperti desain).
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: OverflowBox(
+          maxHeight: size * 1.1,
+          alignment: Alignment.topCenter,
+          child: Lottie.asset(
+            'assets/lottie/$kind.json',
+            width: size,
+            height: size * 1.1,
+            errorBuilder: (_, _, _) => LiveWx(kind, size: size),
+          ),
+        ),
+      ),
+    );
+  }
 }

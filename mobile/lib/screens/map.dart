@@ -961,7 +961,7 @@ class _ForecastCard extends StatelessWidget {
             height: 76,
             child: Row(
               children: [
-                Wx(now?.kind ?? 'cloud', size: 76),
+                WxAnim(now?.kind ?? 'cloud', size: 76),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Column(

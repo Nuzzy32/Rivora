@@ -363,7 +363,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                     );
                   },
                 ),
-                child: LiveWx(
+                child: WxAnim(
                   cur.kind,
                   key: ValueKey('${cur.kind}-$key'),
                   size: 150,
@@ -613,7 +613,7 @@ class _SlotChip extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(hm(s.time), style: t(12, w6, c!)),
-                  Wx(s.kind, size: 44),
+                  WxAnim(s.kind, size: 44, live: selected),
                   Text('${s.temp}°', style: t(18, w6, c)),
                 ],
               ),

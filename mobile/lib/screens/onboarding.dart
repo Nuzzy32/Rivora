@@ -178,7 +178,7 @@ class _Slide0 extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Stack(
     children: [
-      const Positioned(top: 10, left: 30, child: LiveWx('heavy', size: 190)),
+      const Positioned(top: 10, left: 30, child: WxAnim('heavy', size: 190)),
       Positioned(
         bottom: 20,
         right: 6,
