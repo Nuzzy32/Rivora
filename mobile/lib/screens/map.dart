@@ -1867,12 +1867,14 @@ class ShelterSheet extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: [
-            Pill(
-              full ? 'Penuh' : 'Buka',
-              full ? C.redTint : C.greenTint,
-              full ? C.redInk : C.green,
-              size: 12,
-            ),
+            // Status buka/penuh hanya dari petugas; data OpenStreetMap tidak tahu.
+            if (s.source != 'OpenStreetMap')
+              Pill(
+                full ? 'Penuh' : 'Buka',
+                full ? C.redTint : C.greenTint,
+                full ? C.redInk : C.green,
+                size: 12,
+              ),
             Pill(
               '${km(meters(app.center, s.pos))} dari ${app.userPos == null ? 'pusat peta' : 'lokasimu'}',
               C.bg,

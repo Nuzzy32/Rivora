@@ -89,9 +89,21 @@ class _SearchScreenState extends State<SearchScreen> {
                     name: s.name,
                     sub:
                         '${s.type == 'posko' ? 'Posko' : 'Faskes'} · ${km(meters(app.center, s.pos))}',
-                    badge: s.status == 'full' ? 'Penuh' : 'Buka',
-                    tint: s.status == 'full' ? C.redTint : C.greenTint,
-                    ink: s.status == 'full' ? C.redInk : C.green,
+                    badge: s.source == 'OpenStreetMap'
+                        ? 'Faskes'
+                        : s.status == 'full'
+                        ? 'Penuh'
+                        : 'Buka',
+                    tint: s.source == 'OpenStreetMap'
+                        ? C.blueTint
+                        : s.status == 'full'
+                        ? C.redTint
+                        : C.greenTint,
+                    ink: s.source == 'OpenStreetMap'
+                        ? C.blueInk
+                        : s.status == 'full'
+                        ? C.redInk
+                        : C.green,
                     icon: s.type == 'posko'
                         ? Icons.night_shelter_rounded
                         : Icons.local_hospital_rounded,
