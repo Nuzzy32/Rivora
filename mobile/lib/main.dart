@@ -12,6 +12,7 @@ import 'screens/onboarding.dart';
 import 'screens/report.dart';
 import 'screens/search.dart';
 import 'state.dart';
+import 'motion.dart';
 import 'theme.dart';
 
 Future<void> main() async {
@@ -76,7 +77,11 @@ class Shell extends StatelessWidget {
       Scr.guide => GuideScreen(),
     };
     final tabs = s != Scr.onboarding && s != Scr.permission;
-    final sheet = app.selPoint != null || app.selShelter != null;
+    final sheet = app.selPoint != null
+        ? PointSheet(app.selPoint!, key: ValueKey('p${app.selPoint}'))
+        : app.selShelter != null
+        ? ShelterSheet(app.selShelter!, key: ValueKey('s${app.selShelter}'))
+        : null;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -91,66 +96,162 @@ class Shell extends StatelessWidget {
           body: Stack(
             children: [
               Positioned.fill(
-                child: KeyedSubtree(key: ValueKey(s), child: page),
+                child: AnimatedSwitcher(
+                  duration: dur(context, 380),
+                  reverseDuration: dur(context, 200),
+                  transitionBuilder: (child, a) => _PageTransition(
+                    animation: a,
+                    incoming: child.key == ValueKey(s),
+                    dir: app.navDir,
+                    child: child,
+                  ),
+                  layoutBuilder: (current, previous) => Stack(
+                    fit: StackFit.expand,
+                    children: [...previous, ?current],
+                  ),
+                  child: KeyedSubtree(key: ValueKey(s), child: page),
+                ),
               ),
               if (tabs)
                 Positioned(left: 0, right: 0, bottom: 0, child: TabBar5()),
-              if (sheet)
-                Positioned.fill(
-                  child: GestureDetector(
-                    onTap: app.back,
-                    child: const ColoredBox(color: Color(0x471A1D26)),
-                  ),
-                ),
-              if (app.selPoint != null)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: PointSheet(app.selPoint!),
-                ),
-              if (app.selShelter != null)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: ShelterSheet(app.selShelter!),
-                ),
-              if (app.toast != null)
-                Positioned(
-                  left: 24,
-                  right: 24,
-                  bottom: 104 + bottomInset(context),
-                  child: IgnorePointer(
-                    child: Center(
-                      child: Semantics(
-                        liveRegion: true,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: C.ink,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: soft(.3, 24, 12, C.ink),
-                          ),
-                          child: Text(
-                            app.toast!,
-                            textAlign: TextAlign.center,
-                            style: t(13, FontWeight.w400, Colors.white, 1.4),
-                          ),
-                        ),
-                      ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: sheet == null,
+                  child: AnimatedOpacity(
+                    opacity: sheet == null ? 0 : 1,
+                    duration: dur(context, sheet == null ? 200 : 300),
+                    curve: easeOut,
+                    child: GestureDetector(
+                      onTap: app.back,
+                      child: const ColoredBox(color: Color(0x471A1D26)),
                     ),
                   ),
                 ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: AnimatedSwitcher(
+                  duration: dur(context, 420),
+                  reverseDuration: dur(context, 220),
+                  switchInCurve: easeOut,
+                  switchOutCurve: easeIn,
+                  // Sheet naik dari bawah (asal sentuhan), turun lebih cepat saat ditutup.
+                  transitionBuilder: (child, a) => SlideTransition(
+                    position: Tween(
+                      begin: const Offset(0, 1),
+                      end: Offset.zero,
+                    ).animate(a),
+                    child: child,
+                  ),
+                  child: sheet == null
+                      ? const SizedBox.shrink()
+                      : DragToDismiss(
+                          key: sheet.key,
+                          onDismiss: app.back,
+                          child: sheet,
+                        ),
+                ),
+              ),
+              Positioned(
+                left: 24,
+                right: 24,
+                bottom: 104 + bottomInset(context),
+                child: IgnorePointer(
+                  child: Center(
+                    child: AnimatedSwitcher(
+                      duration: dur(context, 320),
+                      reverseDuration: dur(context, 160),
+                      transitionBuilder: materialize(
+                        from: const Offset(0, 14),
+                        blur: false,
+                      ),
+                      child: app.toast == null
+                          ? const SizedBox.shrink()
+                          : Semantics(
+                              key: ValueKey(app.toast),
+                              liveRegion: true,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: C.ink,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: soft(.3, 24, 12, C.ink),
+                                ),
+                                child: Text(
+                                  app.toast!,
+                                  textAlign: TextAlign.center,
+                                  style: t(
+                                    13,
+                                    FontWeight.w400,
+                                    Colors.white,
+                                    1.4,
+                                  ),
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Transisi halaman. Pindah tab = fade-through (tidak ada arah ruang);
+/// masuk sub-layar = geser dari kanan, kembali = dari kiri. Yang keluar hanya memudar & bergeser sedikit.
+/// Tanpa blur: blur satu layar penuh (apalagi peta) terlalu berat untuk HP 2 GB RAM.
+class _PageTransition extends StatelessWidget {
+  final Animation<double> animation;
+  final bool incoming;
+  final int dir;
+  final Widget child;
+  const _PageTransition({
+    required this.animation,
+    required this.incoming,
+    required this.dir,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: animation,
+    child: child,
+    builder: (context, child) {
+      final t = animation.value;
+      if (!incoming) {
+        // t berjalan 1 → 0.
+        return IgnorePointer(
+          child: Opacity(
+            opacity: easeOut.transform(t),
+            child: Transform.translate(
+              offset: Offset(-dir * 24 * (1 - t), 0),
+              child: child,
+            ),
+          ),
+        );
+      }
+      final v = easeOut.transform(t);
+      final opacity = dir == 0 ? const Interval(.25, 1).transform(t) : v;
+      return Opacity(
+        opacity: opacity,
+        child: Transform.translate(
+          offset: Offset(dir * 36 * (1 - v), 0),
+          child: dir == 0
+              ? Transform.scale(scale: .97 + .03 * v, child: child)
+              : child,
+        ),
+      );
+    },
+  );
 }
 
 /// Tab bar: Peta, Prakiraan, Lapor (tengah, menonjol), Akun, Darurat.
@@ -162,25 +263,71 @@ class TabBar5 extends StatelessWidget {
     final tab = tabOf[app.screen];
     Color c(int i) =>
         tab == i ? const Color(0xFF3F7FF0) : const Color(0xFF757C90);
-    Widget item(int i, IconData icon, String label, VoidCallback onTap) =>
-        Expanded(
-          child: Semantics(
-            selected: tab == i,
-            child: Tap(
-              onTap: onTap,
-              height: 60,
-              radius: 16,
-              child: Column(
+    // Ikon aktif: pil indikator melebar di belakang ikon + ikon berganti ke versi terisi.
+    Widget item(
+      int i,
+      IconData icon,
+      IconData active,
+      String label,
+      VoidCallback onTap,
+    ) {
+      final on = tab == i;
+      return Expanded(
+        child: Semantics(
+          selected: on,
+          child: Tap(
+            onTap: onTap,
+            height: 60,
+            radius: 16,
+            child: TweenAnimationBuilder<Color?>(
+              tween: ColorTween(end: c(i)),
+              duration: dur(context, 220),
+              builder: (context, color, _) => Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, size: 24, color: c(i)),
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      AnimatedContainer(
+                        duration: dur(context, 320),
+                        curve: easeOut,
+                        width: on ? 52 : 20,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: on
+                              ? C.blueTint
+                              : C.blueTint.withValues(alpha: 0),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      AnimatedSwitcher(
+                        duration: dur(context, 220),
+                        transitionBuilder: (child, a) => ScaleTransition(
+                          scale: Tween(begin: .8, end: 1.0).animate(a),
+                          child: FadeTransition(opacity: a, child: child),
+                        ),
+                        child: Icon(
+                          on ? active : icon,
+                          key: ValueKey(on),
+                          size: 24,
+                          color: color,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 2),
-                  Text(label, style: t(11, w6, c(i))),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(label, maxLines: 1, style: t(11, w6, color!)),
+                  ),
                 ],
               ),
             ),
           ),
-        );
+        ),
+      );
+    }
+
     final sos = tab == 4;
     return Container(
       height: 86 + bottomInset(context),
@@ -193,20 +340,26 @@ class TabBar5 extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          item(0, Icons.map_outlined, 'Peta', () => app.go(Scr.map)),
+          item(
+            0,
+            Icons.map_outlined,
+            Icons.map_rounded,
+            'Peta',
+            () => app.go(Scr.map),
+          ),
           item(
             1,
             Icons.umbrella_outlined,
+            Icons.umbrella_rounded,
             'Prakiraan',
             () => app.go(Scr.forecast),
           ),
           Expanded(
-            child: Semantics(
-              button: true,
+            child: Tap(
+              onTap: app.openReport,
               label: 'Lapor genangan',
-              child: GestureDetector(
-                onTap: app.openReport,
-                behavior: HitTestBehavior.opaque,
+              pressScale: .9,
+              child: ExcludeSemantics(
                 child: OverflowBox(
                   maxHeight: 120,
                   child: Transform.translate(
@@ -237,7 +390,14 @@ class TabBar5 extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         ExcludeSemantics(
-                          child: Text('Lapor', style: t(11, w6, c(2))),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Lapor',
+                              maxLines: 1,
+                              style: t(11, w6, c(2)),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -249,6 +409,7 @@ class TabBar5 extends StatelessWidget {
           item(
             3,
             Icons.person_outline_rounded,
+            Icons.person_rounded,
             'Akun',
             () => app.go(Scr.account),
           ),
@@ -262,7 +423,8 @@ class TabBar5 extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
+                    AnimatedContainer(
+                      duration: dur(context, 220),
                       width: 34,
                       height: 28,
                       decoration: BoxDecoration(
@@ -276,7 +438,14 @@ class TabBar5 extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text('Darurat', style: t(11, w6, C.red)),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Darurat',
+                        maxLines: 1,
+                        style: t(11, w6, C.red),
+                      ),
+                    ),
                   ],
                 ),
               ),

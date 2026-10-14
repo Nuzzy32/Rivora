@@ -2,10 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../art.dart';
 import '../data.dart';
+import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
 
@@ -25,13 +27,50 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen>
+    with SingleTickerProviderStateMixin {
   final _ctl = MapController();
+  late final AnimationController _fly;
+
+  @override
+  void initState() {
+    super.initState();
+    _fly = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
+  }
+
+  @override
+  void dispose() {
+    _fly.dispose();
+    super.dispose();
+  }
+
+  /// Geser + zoom peta secara halus (bukan meloncat), supaya pengguna tetap paham posisinya.
+  void _flyTo(LatLng to, double zoom) {
+    if (reduced(context)) {
+      _ctl.move(to, zoom);
+      return;
+    }
+    final from = _ctl.camera;
+    final lat = Tween(begin: from.center.latitude, end: to.latitude);
+    final lng = Tween(begin: from.center.longitude, end: to.longitude);
+    final z = Tween(begin: from.zoom, end: zoom);
+    final a = CurvedAnimation(parent: _fly, curve: easeOut);
+    void step() =>
+        _ctl.move(LatLng(lat.evaluate(a), lng.evaluate(a)), z.evaluate(a));
+    _fly
+      ..stop()
+      ..reset();
+    _fly.addListener(step);
+    _fly.forward().whenCompleteOrCancel(() => _fly.removeListener(step));
+  }
 
   Future<void> _locateMe() async {
     if (app.locDenied) return app.showToast('Izin lokasi belum aktif');
     await app.locate();
-    _ctl.move(app.center, 15);
+    _flyTo(app.center, 15);
     app.showToast(
       app.userPos == null
           ? 'Kamu di luar Surabaya. Peta dipusatkan di Balai Kota.'
@@ -56,7 +95,7 @@ class _MapScreenState extends State<MapScreen> {
     if (app.userPos != null && !app.centeredOnUser) {
       app.centeredOnUser = true;
       WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _ctl.move(app.userPos!, 14.5),
+        (_) => _flyTo(app.userPos!, 14.5),
       );
     }
 
@@ -141,72 +180,92 @@ class _MapScreenState extends State<MapScreen> {
                       point: p.pos,
                       width: 52,
                       height: 52,
-                      child: _FloodMarker(p),
+                      child: Appear(
+                        index: app.points.indexOf(p),
+                        dy: 0,
+                        scale: .6,
+                        child: _FloodMarker(p),
+                      ),
                     ),
               ],
             ),
           ],
         ),
 
-        if (app.pointsLoading)
-          Positioned.fill(
-            child: ColoredBox(
-              color: const Color(0xB8F4F7FD),
-              child: Center(
-                child: Box(
-                  padding: const EdgeInsets.all(20),
-                  child: SizedBox(
-                    width: 230,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: C.blue,
-                              ),
+        Positioned.fill(
+          child: IgnorePointer(
+            ignoring: !app.pointsLoading,
+            child: AnimatedSwitcher(
+              duration: dur(context, 300),
+              child: !app.pointsLoading
+                  ? const SizedBox.shrink()
+                  : ColoredBox(
+                      color: const Color(0xB8F4F7FD),
+                      child: Center(
+                        child: Box(
+                          padding: const EdgeInsets.all(20),
+                          child: SizedBox(
+                            width: 230,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: C.blue,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Memuat kondisi terbaru…',
+                                        style: t(14, w6),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Shimmer(
+                                  child: Column(
+                                    children: [
+                                      _bar(1),
+                                      const SizedBox(height: 8),
+                                      _bar(.7),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Memuat kondisi terbaru…',
-                                style: t(14, w6),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        _bar(1),
-                        const SizedBox(height: 8),
-                        _bar(.7),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ),
+        ),
 
         if (empty)
           Positioned(
             left: 36,
             right: 36,
             top: top + 250,
-            child: EmptyCard(
-              Icons.sentiment_satisfied_rounded,
-              'Belum ada laporan di sekitarmu',
-              'Dalam radius 5 km belum ada genangan yang dilaporkan. Kalau kamu melihat genangan, bantu warga lain dengan melapor.',
-              iconColor: C.green,
-              action: Btn.violet(
-                'Lapor genangan',
-                height: 48,
-                fontSize: 14,
-                onTap: app.openReport,
+            child: Appear(
+              child: EmptyCard(
+                Icons.sentiment_satisfied_rounded,
+                'Belum ada laporan di sekitarmu',
+                'Dalam radius 5 km belum ada genangan yang dilaporkan. Kalau kamu melihat genangan, bantu warga lain dengan melapor.',
+                iconColor: C.green,
+                action: Btn.violet(
+                  'Lapor genangan',
+                  height: 48,
+                  fontSize: 14,
+                  onTap: app.openReport,
+                ),
               ),
             ),
           ),
@@ -311,25 +370,18 @@ class _MapScreenState extends State<MapScreen> {
                       color: app.layers.contains(k) ? C.blueInk : Colors.white,
                       shadow: soft(.14, 18, 8),
                       padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Row(
-                        children: [
-                          Icon(
-                            icon,
-                            size: 18,
-                            color: app.layers.contains(k)
-                                ? Colors.white
-                                : C.ink,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            label,
-                            style: t(
-                              13,
-                              w5,
-                              app.layers.contains(k) ? Colors.white : C.ink,
-                            ),
-                          ),
-                        ],
+                      child: TweenAnimationBuilder<Color?>(
+                        tween: ColorTween(
+                          end: app.layers.contains(k) ? Colors.white : C.ink,
+                        ),
+                        duration: dur(context, 200),
+                        builder: (context, c, _) => Row(
+                          children: [
+                            Icon(icon, size: 18, color: c),
+                            const SizedBox(width: 6),
+                            Text(label, style: t(13, w5, c!)),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -342,58 +394,70 @@ class _MapScreenState extends State<MapScreen> {
           top: top + 126,
           left: 16,
           right: 16,
-          child: Column(
-            children: [
-              if (app.offline && app.pointsFetchedAt != null) ...[
-                Note(
-                  'Data terakhir: ${hm(app.pointsFetchedAt!)}',
-                  bold: 'Offline.',
-                  icon: Icons.cloud_off_rounded,
-                  bg: C.ink,
-                  fg: Colors.white,
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (app.locDenied)
-                Container(
-                  padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: soft(.14, 18, 8),
+          child: AnimatedSize(
+            duration: dur(context, 260),
+            curve: easeOut,
+            alignment: Alignment.topCenter,
+            child: Column(
+              children: [
+                if (app.offline && app.pointsFetchedAt != null) ...[
+                  Appear(
+                    child: Note(
+                      'Data terakhir: ${hm(app.pointsFetchedAt!)}',
+                      bold: 'Offline.',
+                      icon: Icons.cloud_off_rounded,
+                      bg: C.ink,
+                      fg: Colors.white,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.location_off_rounded,
-                        size: 20,
-                        color: C.redBright,
+                  const SizedBox(height: 8),
+                ],
+                if (app.locDenied)
+                  Appear(
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: soft(.14, 18, 8),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Lokasi belum aktif. Peta dipusatkan di Balai Kota.',
-                          style: t(13, FontWeight.w400, C.ink, 1.4),
-                        ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.location_off_rounded,
+                            size: 20,
+                            color: C.redBright,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Lokasi belum aktif. Peta dipusatkan di Balai Kota.',
+                              style: t(13, FontWeight.w400, C.ink, 1.4),
+                            ),
+                          ),
+                          Tap(
+                            onTap: app.enableLocation,
+                            height: 44,
+                            radius: 12,
+                            color: C.blueTint,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Center(
+                              child: Text(
+                                'Aktifkan',
+                                style: t(13, w6, C.blueMid),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      Tap(
-                        onTap: app.enableLocation,
-                        height: 44,
-                        radius: 12,
-                        color: C.blueTint,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Center(
-                          child: Text('Aktifkan', style: t(13, w6, C.blueMid)),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              if (app.layers.contains('risk')) ...[
-                const SizedBox(height: 8),
-                const _RiskLegend(),
+                if (app.layers.contains('risk')) ...[
+                  const SizedBox(height: 8),
+                  const Appear(child: _RiskLegend()),
+                ],
               ],
-            ],
+            ),
           ),
         ),
 
@@ -419,8 +483,22 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
         ),
-        if (app.legend)
-          Positioned(right: 74, bottom: ctrlBottom, child: const _Legend()),
+        Positioned(
+          right: 74,
+          bottom: ctrlBottom,
+          child: AnimatedSwitcher(
+            duration: dur(context, 260),
+            reverseDuration: dur(context, 150),
+            switchInCurve: easeOut,
+            // Membesar dari pojok kanan-bawah, dekat tombol legenda (bukan dari tengah).
+            transitionBuilder: (child, a) => ScaleTransition(
+              alignment: Alignment.bottomRight,
+              scale: Tween(begin: .9, end: 1.0).animate(a),
+              child: FadeTransition(opacity: a, child: child),
+            ),
+            child: app.legend ? const _Legend() : const SizedBox.shrink(),
+          ),
+        ),
 
         Positioned(
           left: 16,
@@ -448,7 +526,18 @@ class _MapScreenState extends State<MapScreen> {
           left: 16,
           right: 16,
           bottom: 100 + bot,
-          child: radarOn ? _RadarCard() : _ForecastCard(rainLine),
+          child: AnimatedSwitcher(
+            duration: dur(context, 360),
+            reverseDuration: dur(context, 160),
+            transitionBuilder: materialize(from: const Offset(0, 16)),
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.bottomCenter,
+              children: [...previous, ?current],
+            ),
+            child: radarOn
+                ? _RadarCard(key: const ValueKey('radar'))
+                : _ForecastCard(rainLine, key: const ValueKey('fc')),
+          ),
         ),
       ],
     );
@@ -525,7 +614,9 @@ class _FloodMarker extends StatelessWidget {
         child: Center(
           child: AnimatedScale(
             scale: sel ? 1.25 : 1,
-            duration: const Duration(milliseconds: 200),
+            duration: dur(context, 280),
+            curve: Curves
+                .easeOutBack, // sedikit memantul: penanda terpilih terasa diangkat
             child: Opacity(
               opacity: p.stale ? .45 : 1,
               child: Stack(
@@ -850,7 +941,7 @@ class _RiskLegend extends StatelessWidget {
 
 class _ForecastCard extends StatelessWidget {
   final String? rainLine;
-  const _ForecastCard(this.rainLine);
+  const _ForecastCard(this.rainLine, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -950,7 +1041,7 @@ class _ForecastCard extends StatelessWidget {
 
 /// US-11: radar 2 jam terakhir, slider + putar, keterangan + kredit Rain Viewer.
 class _RadarCard extends StatelessWidget {
-  const _RadarCard();
+  const _RadarCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1717,24 +1808,42 @@ class _Sheet extends StatelessWidget {
       borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       boxShadow: soft(.15, 40, -20, C.ink),
     ),
-    child: SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 10, 20, 28 + bottomInset(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDDE3EE),
-                borderRadius: BorderRadius.circular(3),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Area gagang di luar scroll: tarik ke bawah untuk menutup (lihat DragToDismiss di Shell).
+        Semantics(
+          label: 'Tarik ke bawah untuk menutup',
+          child: SizedBox(
+            height: 24,
+            child: Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDE3EE),
+                  borderRadius: BorderRadius.circular(3),
+                ),
               ),
             ),
           ),
-          for (final c in children) ...[const SizedBox(height: 14), c],
-        ],
-      ),
+        ),
+        Flexible(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 28 + bottomInset(context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (i, c) in children.indexed) ...[
+                  if (i > 0) const SizedBox(height: 14),
+                  Appear(index: i, child: c),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }

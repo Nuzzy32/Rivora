@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../art.dart';
 import '../data.dart';
+import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
 
@@ -124,6 +126,7 @@ class _ReportScreenState extends State<ReportScreen> {
         photos: [for (final x in _photos) File(x.path)],
         note: _note.text.trim(),
       );
+      HapticFeedback.mediumImpact();
       await app.reportSent(pointId, _pin, _depth!, _photos.length);
     } on ApiError catch (e) {
       // Isian tidak hilang; batas kuota ditampilkan, gangguan jaringan/unggah jadi banner.
@@ -148,7 +151,7 @@ class _ReportScreenState extends State<ReportScreen> {
         16,
         tabSpace(context),
       ),
-      children: [
+      children: stagger([
         Header(
           'Lapor Genangan',
           sub: out
@@ -272,7 +275,8 @@ class _ReportScreenState extends State<ReportScreen> {
         const SizedBox(height: 18),
         _label('2. Seberapa tinggi airnya?'),
         SizedBox(
-          height: 172,
+          // Ikut ukuran huruf sistem supaya label kartu tidak terpotong (172 pada 100%).
+          height: 124 + 48 * MediaQuery.textScalerOf(context).scale(1),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             clipBehavior: Clip.none,
@@ -285,6 +289,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 label: '${d.label}, ${d.cm}',
                 child: Tap(
                   onTap: () => setState(() {
+                    HapticFeedback.selectionClick();
                     _depth = i;
                     _errDepth = false;
                   }),
@@ -477,7 +482,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 icon: Icons.send_rounded,
                 onTap: _submit,
               ),
-      ],
+      ]),
     );
   }
 
@@ -522,20 +527,27 @@ class SentScreen extends StatelessWidget {
           20,
           tabSpace(context),
         ),
-        children: [
+        children: stagger([
           Center(
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                gradient: gViolet,
-                borderRadius: BorderRadius.circular(40),
-                boxShadow: soft(.4, 40, 24, C.violet),
-              ),
-              child: const Icon(
-                Icons.check_rounded,
-                size: 60,
-                color: Colors.white,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: dur(context, 700),
+              curve: Curves.elasticOut,
+              builder: (context, v, child) =>
+                  Transform.scale(scale: .5 + .5 * v, child: child),
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  gradient: gViolet,
+                  borderRadius: BorderRadius.circular(40),
+                  boxShadow: soft(.4, 40, 24, C.violet),
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  size: 60,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -630,7 +642,7 @@ class SentScreen extends StatelessWidget {
             shadow: soft(.08, 16, 6),
             onTap: () => app.go(Scr.history),
           ),
-        ],
+        ]),
       ),
     );
   }
@@ -659,7 +671,7 @@ class HistoryScreen extends StatelessWidget {
         20,
         tabSpace(context),
       ),
-      children: [
+      children: stagger([
         Header('Riwayat Laporanku', onBack: () => app.go(Scr.account)),
         const SizedBox(height: 14),
         if (app.reports.isEmpty)
@@ -711,7 +723,7 @@ class HistoryScreen extends StatelessWidget {
               ),
             ),
           ),
-      ],
+      ]),
     );
   }
 }

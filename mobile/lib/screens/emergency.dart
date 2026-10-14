@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data.dart';
+import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
 
@@ -41,7 +42,7 @@ class EmergencyScreen extends StatelessWidget {
           20,
           tabSpace(context),
         ),
-        children: [
+        children: stagger([
           Text('Darurat', style: t(24, w7)),
           Text(
             'Tetap tenang. Pilih bantuan yang kamu butuhkan.',
@@ -49,7 +50,10 @@ class EmergencyScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Tap(
-            onTap: () => app.call('112'),
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              app.call('112');
+            },
             radius: 30,
             gradient: gRed,
             shadow: soft(.35, 36, 20, const Color(0xFFD93439)),
@@ -254,7 +258,7 @@ class EmergencyScreen extends StatelessWidget {
               ],
             ),
           ),
-        ],
+        ]),
       ),
     );
   }
@@ -307,7 +311,7 @@ class GuideScreen extends StatelessWidget {
           20,
           tabSpace(context),
         ),
-        children: [
+        children: stagger([
           Header(
             'Panduan Siaga Banjir',
             sub: 'Bisa dibuka tanpa internet',
@@ -354,28 +358,32 @@ class GuideScreen extends StatelessWidget {
           Text(sec['heading'] as String, style: t(18, w7)),
           const SizedBox(height: 10),
           for (final (i, st) in (sec['steps'] as List).indexed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Box(
-                radius: 20,
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    IconTile(
-                      _stepIcons[st[0]] ?? Icons.check_rounded,
-                      C.violetTint,
-                      C.violetMid,
-                      size: 42,
-                      iconSize: 21,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '${i + 1}. ${st[1]}',
-                        style: t(13, FontWeight.w400, C.ink, 1.5),
+            Appear(
+              key: ValueKey('${app.guideTab}-$i'),
+              index: i,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Box(
+                  radius: 20,
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      IconTile(
+                        _stepIcons[st[0]] ?? Icons.check_rounded,
+                        C.violetTint,
+                        C.violetMid,
+                        size: 42,
+                        iconSize: 21,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '${i + 1}. ${st[1]}',
+                          style: t(13, FontWeight.w400, C.ink, 1.5),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -421,7 +429,7 @@ class GuideScreen extends StatelessWidget {
               ],
             ),
           ),
-        ],
+        ]),
       );
     },
   );

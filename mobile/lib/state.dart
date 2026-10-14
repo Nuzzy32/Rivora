@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -49,6 +50,26 @@ const tabOf = {
   Scr.guide: 4,
 };
 
+/// Kedalaman layar untuk arah transisi: 0 = akar tab, 1 = sub-layar, 2 = sub-sub.
+const depthOf = {
+  Scr.onboarding: 0,
+  Scr.permission: 1,
+  Scr.map: 0,
+  Scr.forecast: 0,
+  Scr.report: 0,
+  Scr.account: 0,
+  Scr.emergency: 0,
+  Scr.search: 1,
+  Scr.reportSent: 1,
+  Scr.login: 1,
+  Scr.watch: 1,
+  Scr.notif: 1,
+  Scr.history: 1,
+  Scr.profile: 1,
+  Scr.guide: 1,
+  Scr.forgot: 2,
+};
+
 final app = AppState();
 
 /// Satu state untuk seluruh aplikasi, mengikuti struktur prototipe di Claude Design.
@@ -57,6 +78,7 @@ class AppState extends ChangeNotifier {
   late SharedPreferences _prefs;
 
   Scr screen = Scr.onboarding;
+  int navDir = 0; // 1 = masuk lebih dalam, -1 = kembali, 0 = pindah tab
   int onb = 0;
   bool permNotif = false; // langkah izin kedua (notifikasi)
 
@@ -209,6 +231,7 @@ class AppState extends ChangeNotifier {
     selShelter = null;
     legend = false;
     if (s != Scr.map) stopRadar();
+    if (s != screen) navDir = (depthOf[s]! - depthOf[screen]!).sign;
     screen = s;
     notifyListeners();
   }
@@ -290,6 +313,7 @@ class AppState extends ChangeNotifier {
 
   // --- Peta
   void toggleLayer(String k) {
+    HapticFeedback.selectionClick();
     if (!layers.remove(k)) layers.add(k);
     if (k == 'radar') layers.contains('radar') ? _loadRadar() : stopRadar();
     notifyListeners();

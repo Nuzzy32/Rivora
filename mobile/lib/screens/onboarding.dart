@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../motion.dart';
 
 import '../art.dart';
 import '../state.dart';
@@ -64,7 +65,7 @@ class OnboardingScreen extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(child: Text('SIGAP Banjir', style: t(16, w7))),
               Tap(
-                onTap: () => app.set(() => app.screen = Scr.permission),
+                onTap: () => app.go(Scr.permission),
                 height: 48,
                 radius: 14,
                 color: Colors.white.withValues(alpha: .7),
@@ -75,30 +76,52 @@ class OnboardingScreen extends StatelessWidget {
           ),
           Expanded(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: Column(
+              duration: dur(context, 420),
+              reverseDuration: dur(context, 180),
+              transitionBuilder: materialize(from: const Offset(28, 0)),
+              // Muat → rata bawah seperti desain; tidak muat (HP kecil, huruf 130%) → bisa di-scroll.
+              child: LayoutBuilder(
                 key: ValueKey(i),
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Flexible(
-                    child: SizedBox(
-                      height: 330,
-                      child: [
-                        const _Slide0(),
-                        const _Slide1(),
-                        const _Slide2(),
-                      ][i],
+                builder: (context, c) => SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: c.maxHeight),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: (c.maxHeight - 230).clamp(200, 330),
+                          child: FittedBox(
+                            child: SizedBox(
+                              width: 342,
+                              height: 330,
+                              child: [
+                                const _Slide0(),
+                                const _Slide1(),
+                                const _Slide2(),
+                              ][i],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        Text(
+                          _copy[i].$1,
+                          style: t(
+                            28,
+                            w7,
+                            C.ink,
+                            1.2,
+                          ).copyWith(letterSpacing: -.4),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _copy[i].$2,
+                          style: t(15, FontWeight.w400, C.body, 1.6),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 28),
-                  Text(
-                    _copy[i].$1,
-                    style: t(28, w7, C.ink, 1.2).copyWith(letterSpacing: -.4),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(_copy[i].$2, style: t(15, FontWeight.w400, C.body, 1.6)),
-                ],
+                ),
               ),
             ),
           ),
@@ -118,9 +141,8 @@ class OnboardingScreen extends StatelessWidget {
                 ),
               const Spacer(),
               Tap(
-                onTap: () => app.set(
-                  () => i < 2 ? app.onb++ : app.screen = Scr.permission,
-                ),
+                onTap: () =>
+                    i < 2 ? app.set(() => app.onb++) : app.go(Scr.permission),
                 height: 56,
                 radius: 20,
                 gradient: gBlue,
@@ -156,7 +178,7 @@ class _Slide0 extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Stack(
     children: [
-      const Positioned(top: 10, left: 30, child: Wx('heavy', size: 190)),
+      const Positioned(top: 10, left: 30, child: LiveWx('heavy', size: 190)),
       Positioned(
         bottom: 20,
         right: 6,
@@ -186,9 +208,11 @@ class _Slide0 extends StatelessWidget {
                     color: C.blueMid,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    'Terverifikasi · 12 menit lalu',
-                    style: t(12, FontWeight.w400, C.muted),
+                  Flexible(
+                    child: Text(
+                      'Terverifikasi · 12 menit lalu',
+                      style: t(12, FontWeight.w400, C.muted),
+                    ),
                   ),
                 ],
               ),
@@ -381,12 +405,22 @@ class PermissionScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(36),
                       boxShadow: soft(.4, 40, 20, C.blue),
                     ),
-                    child: Icon(
-                      notif
-                          ? Icons.notifications_rounded
-                          : Icons.location_on_rounded,
-                      size: 52,
-                      color: Colors.white,
+                    child: AnimatedSwitcher(
+                      duration: dur(context, 320),
+                      transitionBuilder: (child, a) => ScaleTransition(
+                        scale: Tween(begin: .7, end: 1.0).animate(
+                          CurvedAnimation(parent: a, curve: Curves.easeOutBack),
+                        ),
+                        child: FadeTransition(opacity: a, child: child),
+                      ),
+                      child: Icon(
+                        notif
+                            ? Icons.notifications_rounded
+                            : Icons.location_on_rounded,
+                        key: ValueKey(notif),
+                        size: 52,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),

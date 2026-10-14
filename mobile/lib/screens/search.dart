@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data.dart';
+import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
 
@@ -81,7 +82,7 @@ class _SearchScreenState extends State<SearchScreen> {
         16,
         tabSpace(context),
       ),
-      children: [
+      children: stagger([
         Row(
           children: [
             SquareBtn(
@@ -192,7 +193,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
-      ],
+      ]),
     );
   }
 }

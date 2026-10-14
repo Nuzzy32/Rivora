@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../data.dart';
+import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
 import 'search.dart' show watchIcon;
@@ -96,7 +97,7 @@ class AccountScreen extends StatelessWidget {
         20,
         tabSpace(context),
       ),
-      children: [
+      children: stagger([
         Text('Akun', style: t(24, w7)),
         const SizedBox(height: 16),
         if (u == null)
@@ -305,7 +306,7 @@ class AccountScreen extends StatelessWidget {
             ],
           ),
         ],
-      ],
+      ]),
     );
   }
 
@@ -560,7 +561,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       20,
       tabSpace(context) + MediaQuery.viewInsetsOf(context).bottom,
     ),
-    children: [
+    children: stagger([
       Header('Edit Profil', onBack: () => app.go(Scr.account)),
       const SizedBox(height: 16),
       Center(
@@ -644,7 +645,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       const SizedBox(height: 16),
       Btn.primary(_busy ? 'Menyimpan…' : 'Simpan perubahan', onTap: _save),
-    ],
+    ]),
   );
 }
 
@@ -729,7 +730,7 @@ class _WatchScreenState extends State<WatchScreen> {
         20,
         tabSpace(context) + MediaQuery.viewInsetsOf(context).bottom,
       ),
-      children: [
+      children: stagger([
         Header(
           'Lokasi Pantauan',
           sub: '$n dari 5 lokasi',
@@ -772,7 +773,7 @@ class _WatchScreenState extends State<WatchScreen> {
               ],
             ),
           ),
-      ],
+      ]),
     );
   }
 
@@ -1247,7 +1248,7 @@ class NotifScreen extends StatelessWidget {
       20,
       tabSpace(context),
     ),
-    children: [
+    children: stagger([
       Header(
         'Notifikasi',
         onBack: app.back,
@@ -1354,6 +1355,6 @@ class NotifScreen extends StatelessWidget {
               },
             ),
           ),
-    ],
+    ]),
   );
 }

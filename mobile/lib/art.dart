@@ -3,15 +3,17 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// Ilustrasi cuaca 3D lembut dari Wx.dc.html. Digambar di kanvas 100x100 lalu diskalakan.
+/// [phase] 0..1 menggerakkan awan mengambang, tetes jatuh, petir berkedip (dipakai [LiveWx]).
 class Wx extends StatelessWidget {
   final String
   kind; // sun, partly, cloud, rain, heavy, storm, nightcloud, nightrain
   final double size;
-  const Wx(this.kind, {super.key, this.size = 100});
+  final double? phase;
+  const Wx(this.kind, {super.key, this.size = 100, this.phase});
 
   @override
   Widget build(BuildContext context) {
-    final k = kind;
+    final k = kind, ph = phase;
     final drops = {'rain': 2, 'nightrain': 2, 'heavy': 3}[k] ?? 0;
     final pos = drops == 3
         ? const [Offset(30, 86), Offset(49, 90), Offset(68, 86)]
@@ -24,6 +26,28 @@ class Wx extends StatelessWidget {
       'nightrain',
     ].contains(k);
     final dark = k == 'heavy' || k == 'storm';
+    // Awan dan benda langit bergerak dengan fase berbeda: kesan kedalaman yang sangat halus.
+    final float = ph == null ? 0.0 : math.sin(ph * 2 * math.pi) * 2.5;
+    final skyFloat = ph == null ? 0.0 : math.sin(ph * 2 * math.pi + 1.2) * 1.5;
+    Widget drop(int i, Offset p) {
+      if (ph == null) {
+        return Positioned(left: p.dx, top: p.dy, child: const _Drop());
+      }
+      final f = (ph * 2 + i / drops) % 1; // dua siklus jatuh per siklus awan
+      return Positioned(
+        left: p.dx,
+        top: p.dy - 4 + f * 12,
+        child: Opacity(
+          opacity: f < .75 ? 1 : (1 - f) / .25,
+          child: const _Drop(),
+        ),
+      );
+    }
+
+    final bolt =
+        ph == null || (ph % .5) < .06 || (ph % .5 > .1 && ph % .5 < .13)
+        ? 1.0
+        : .35;
     return ExcludeSemantics(
       child: SizedBox(
         width: size,
@@ -35,33 +59,40 @@ class Wx extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                if (k == 'sun') _sun(18, 64, big: true),
-                if (k == 'partly' || k == 'rain') _sun(8, 46),
-                if (k.startsWith('night'))
-                  const Positioned(left: 50, top: 4, child: _Moon()),
-                for (final p in pos.take(drops))
-                  Positioned(left: p.dx, top: p.dy, child: const _Drop()),
-                if (k == 'storm')
-                  const Positioned(left: 42, top: 72, child: _Bolt()),
-                if (light)
-                  const Positioned(
-                    left: 10,
-                    top: 34,
-                    child: _Cloud(
-                      Colors.white,
-                      Color(0xFFE3EAF7),
-                      Color(0x475896FD),
-                    ),
+                Transform.translate(
+                  offset: Offset(0, skyFloat),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      if (k == 'sun') _sun(18, 64, big: true),
+                      if (k == 'partly' || k == 'rain') _sun(8, 46),
+                      if (k.startsWith('night'))
+                        const Positioned(left: 50, top: 4, child: _Moon()),
+                    ],
                   ),
-                if (dark)
-                  const Positioned(
+                ),
+                for (final (i, p) in pos.take(drops).indexed) drop(i, p),
+                if (k == 'storm')
+                  Positioned(
+                    left: 42,
+                    top: 72,
+                    child: Opacity(opacity: bolt, child: const _Bolt()),
+                  ),
+                if (light || dark)
+                  Positioned(
                     left: 10,
-                    top: 34,
-                    child: _Cloud(
-                      Color(0xFFF3F5FA),
-                      Color(0xFFC3CDE4),
-                      Color(0x4D3C508C),
-                    ),
+                    top: 34 + float,
+                    child: light
+                        ? const _Cloud(
+                            Colors.white,
+                            Color(0xFFE3EAF7),
+                            Color(0x475896FD),
+                          )
+                        : const _Cloud(
+                            Color(0xFFF3F5FA),
+                            Color(0xFFC3CDE4),
+                            Color(0x4D3C508C),
+                          ),
                   ),
               ],
             ),
@@ -344,25 +375,40 @@ class DepthFig extends StatelessWidget {
                   part(51, 30, 7, 30, 4, arm, -8),
                   part(29, 62, 9, 40, 5, dark),
                   part(42, 62, 9, 40, 5, dark),
-                  if (water > 0)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      height: water,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0x9E6EA5FF), Color(0xD14682F0)],
-                          ),
-                          border: Border(
-                            top: BorderSide(color: Color(0xD9FFFFFF), width: 2),
-                          ),
-                        ),
+                  // Air naik dari dasar ke tinggi sebenarnya: memperagakan arti kategori ketinggian.
+                  Positioned.fill(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: water),
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 900),
+                      curve: const Cubic(0.22, 1, 0.36, 1),
+                      builder: (context, h, _) => Align(
+                        alignment: Alignment.bottomCenter,
+                        child: h < .5
+                            ? const SizedBox.shrink()
+                            : Container(
+                                height: h,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Color(0x9E6EA5FF),
+                                      Color(0xD14682F0),
+                                    ],
+                                  ),
+                                  border: Border(
+                                    top: BorderSide(
+                                      color: Color(0xD9FFFFFF),
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
+                  ),
                   if (level == 0)
                     Positioned(
                       right: 8,
@@ -389,4 +435,46 @@ class DepthFig extends StatelessWidget {
       ),
     );
   }
+}
+
+/// [Wx] yang hidup: siklus 4 detik. Diam saat "Kurangi Gerakan" aktif.
+/// Hanya dipakai untuk ilustrasi besar (hero) supaya tidak boros baterai.
+class LiveWx extends StatefulWidget {
+  final String kind;
+  final double size;
+  const LiveWx(this.kind, {super.key, this.size = 100});
+
+  @override
+  State<LiveWx> createState() => _LiveWxState();
+}
+
+class _LiveWxState extends State<LiveWx> with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 4),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    MediaQuery.disableAnimationsOf(context) ? _c.stop() : _c.repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) => Wx(
+        widget.kind,
+        size: widget.size,
+        phase: _c.isAnimating ? _c.value : null,
+      ),
+    ),
+  );
 }

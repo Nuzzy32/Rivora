@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../data.dart';
+import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
 
@@ -110,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
             20,
             tabSpace(context) + MediaQuery.viewInsetsOf(context).bottom,
           ),
-          children: [
+          children: stagger([
             Align(
               alignment: Alignment.centerLeft,
               child: SquareBtn(
@@ -252,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
               fontSize: 14,
               onTap: () => app.go(guestTo),
             ),
-          ],
+          ]),
         ),
       ),
     );
@@ -482,7 +483,7 @@ class _ForgotScreenState extends State<ForgotScreen> {
           20,
           tabSpace(context) + MediaQuery.viewInsetsOf(context).bottom,
         ),
-        children: [
+        children: stagger([
           Align(
             alignment: Alignment.centerLeft,
             child: SquareBtn(
@@ -495,7 +496,7 @@ class _ForgotScreenState extends State<ForgotScreen> {
           ),
           const SizedBox(height: 20),
           ...body,
-        ],
+        ]),
       ),
     );
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'motion.dart';
+
 /// Warna dari desain Claude Design (SIGAP Banjir.dc.html).
 class C {
   static const ink = Color(0xFF1A1D26);
@@ -202,7 +204,7 @@ TextStyle t(
 const w5 = FontWeight.w500, w6 = FontWeight.w600, w7 = FontWeight.w700;
 
 /// Area ketuk dengan ripple; semua tombol di desain lewat sini supaya target ≥ 48 dp konsisten.
-class Tap extends StatelessWidget {
+class Tap extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
   final double radius;
@@ -213,6 +215,7 @@ class Tap extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final double? width, height;
   final String? label;
+  final double pressScale; // umpan balik tekan; 1 = tanpa
   const Tap({
     super.key,
     required this.child,
@@ -226,30 +229,53 @@ class Tap extends StatelessWidget {
     this.width,
     this.height,
     this.label,
+    this.pressScale = .97,
   });
 
   @override
+  State<Tap> createState() => _TapState();
+}
+
+class _TapState extends State<Tap> {
+  bool _down = false;
+
+  @override
   Widget build(BuildContext context) {
-    final r = BorderRadius.circular(radius);
+    final w = widget, r = BorderRadius.circular(w.radius);
     return Semantics(
       button: true,
-      label: label,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: gradient == null ? color : null,
-          gradient: gradient,
-          borderRadius: r,
-          boxShadow: shadow,
-          border: border,
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
+      label: w.label,
+      child: AnimatedScale(
+        scale: _down ? w.pressScale : 1,
+        // Tekan cepat, lepas sedikit lebih lambat supaya terasa memantul.
+        duration: dur(context, _down ? 90 : 220),
+        curve: easeOut,
+        child: AnimatedContainer(
+          // Perubahan warna/bayangan (chip terpilih, slot aktif) berpindah halus, tidak meloncat.
+          duration: dur(context, 200),
+          curve: easeOut,
+          width: w.width,
+          height: w.height,
+          decoration: BoxDecoration(
+            color: w.gradient == null ? w.color : null,
+            gradient: w.gradient,
             borderRadius: r,
-            onTap: onTap,
-            child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
+            boxShadow: w.shadow,
+            border: w.border,
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              borderRadius: r,
+              onTap: w.onTap,
+              onHighlightChanged: w.onTap == null
+                  ? null
+                  : (v) => setState(() => _down = v),
+              child: Padding(
+                padding: w.padding ?? EdgeInsets.zero,
+                child: w.child,
+              ),
+            ),
           ),
         ),
       ),
