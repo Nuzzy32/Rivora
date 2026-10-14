@@ -1287,8 +1287,8 @@ class PointSheet extends StatelessWidget {
           ],
         ),
         if (p.stale)
-          const Note(
-            'Belum ada pembaruan lebih dari 3 jam. Kondisi bisa sudah berubah.',
+          Note(
+            'Belum ada pembaruan lebih dari ${Api.staleHours} jam. Kondisi bisa sudah berubah.',
             bold: 'Perlu Konfirmasi.',
             icon: Icons.schedule_rounded,
           ),

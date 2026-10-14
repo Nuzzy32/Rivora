@@ -163,6 +163,7 @@ class AppState extends ChangeNotifier {
         Api.shelters(),
         Api.contacts(),
         Api.riskAreas(),
+        Api.settings(),
       ]);
       shelters = r[0] as List<Shelter>;
       contacts = r[1] as List<Contact>;

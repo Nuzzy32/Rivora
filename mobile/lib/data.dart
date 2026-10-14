@@ -499,10 +499,23 @@ class Api {
     await _db.auth.signOut();
   });
 
+  // --- Batas yang diatur Admin di panel web (app_settings). Gagal dimuat = tetap nilai awal.
+  static int reportsPerHour = 5, staleHours = 3;
+  static Future<void> settings() async {
+    try {
+      final r = await _db
+          .from('app_settings')
+          .select('reports_per_hour, stale_hours')
+          .single();
+      reportsPerHour = r['reports_per_hour'] as int;
+      staleHours = r['stale_hours'] as int;
+    } catch (_) {}
+  }
+
   // --- Laporan
   static Future<int> quotaLeft() => _call(() async {
     final uid = _db.auth.currentUser?.id;
-    if (uid == null) return 5;
+    if (uid == null) return reportsPerHour;
     final since = DateTime.now()
         .toUtc()
         .subtract(const Duration(hours: 1))
@@ -513,10 +526,10 @@ class Api {
         .eq('user_id', uid)
         .gte('created_at', since)
         .count(CountOption.exact);
-    return 5 - n.count;
+    return reportsPerHour - n.count;
   });
 
-  /// Unggah foto ke folder pengguna lalu simpan laporan. Server menempelkan ke titik ≤ 100 m.
+  /// Unggah foto ke folder pengguna lalu simpan laporan. Server menempelkan ke titik aktif terdekat (radius gabung di app_settings).
   static Future<int> submitReport({
     required LatLng pos,
     required int depth,
@@ -556,7 +569,7 @@ class Api {
     final rows = await _db
         .from('reports')
         .select(
-          'place_name, depth, created_at, status, reject_reason, flood_points(name)',
+          'place_name, depth, created_at, status, reject_reason, reject_note, flood_points(name)',
         )
         .order('created_at', ascending: false);
     const reasons = {
@@ -573,7 +586,7 @@ class Api {
           depthIndex(r['depth']),
           _ts(r['created_at'])!,
           r['status'] as String,
-          reasons[r['reject_reason']],
+          r['reject_note'] ?? reasons[r['reject_reason']],
         ),
     ];
   });

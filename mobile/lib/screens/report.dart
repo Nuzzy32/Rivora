@@ -30,7 +30,7 @@ class _ReportScreenState extends State<ReportScreen> {
       _errDepth = false,
       _errPhoto = false;
   int? _depth;
-  int _quota = 5;
+  int _quota = Api.reportsPerHour;
 
   @override
   void initState() {
@@ -156,7 +156,7 @@ class _ReportScreenState extends State<ReportScreen> {
           'Lapor Genangan',
           sub: out
               ? 'Batas laporan jam ini tercapai'
-              : 'Sisa kuota: $quota dari 5 laporan jam ini',
+              : 'Sisa kuota: $quota dari ${Api.reportsPerHour} laporan jam ini',
           icon: Icons.close_rounded,
           onBack: () => app.go(Scr.map),
         ),
@@ -463,8 +463,8 @@ class _ReportScreenState extends State<ReportScreen> {
           const SizedBox(height: 12),
         ],
         if (out) ...[
-          const Note(
-            'Kamu sudah mengirim 5 laporan dalam 1 jam. Coba lagi nanti.',
+          Note(
+            'Kamu sudah mengirim ${Api.reportsPerHour} laporan dalam 1 jam. Coba lagi nanti.',
             icon: Icons.hourglass_top_rounded,
             bg: C.grayTint,
             fg: C.sub,
