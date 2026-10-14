@@ -146,9 +146,22 @@ class _ReportScreenState extends State<ReportScreen> {
       HapticFeedback.mediumImpact();
       await app.reportSent(pointId, _pin, _depth!, _photos.length);
     } on ApiError catch (e) {
-      // Isian tidak hilang; batas kuota ditampilkan, gangguan jaringan/unggah jadi banner.
+      // Isian tidak hilang; batas kuota ditampilkan. Tanpa sinyal: simpan & kirim otomatis nanti.
       if (e.code == 'RATE_LIMITED') {
         if (mounted) setState(() => _quota = 0);
+      } else if (e.code == 'OFFLINE' || e.code == 'UPLOAD') {
+        await app.queueReport(
+          pos: _pin,
+          depth: _depth!,
+          name: _place,
+          note: _note.text.trim(),
+          photos: [for (final x in _photos) x.path],
+        );
+        app.showToast(
+          'Belum ada sinyal. Laporan disimpan dan dikirim otomatis saat online.',
+        );
+        app.reportFor = null;
+        app.go(Scr.map);
       } else if (mounted) {
         setState(() => _uploadError = true);
       }

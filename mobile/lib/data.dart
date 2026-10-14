@@ -378,6 +378,8 @@ class Api {
       });
     } on SocketException {
       throw const ApiError('OFFLINE', 'Tidak ada koneksi internet.');
+    } on http.ClientException {
+      throw const ApiError('OFFLINE', 'Tidak ada koneksi internet.');
     } on StorageException {
       throw const ApiError('UPLOAD', 'Foto gagal diunggah.');
     }

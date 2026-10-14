@@ -385,6 +385,49 @@ class _MapScreenState extends State<MapScreen>
                   ),
                   const SizedBox(height: 8),
                 ],
+                if (app.outbox.isNotEmpty) ...[
+                  Appear(
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                      decoration: BoxDecoration(
+                        color: C.ink,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: soft(.14, 18, 8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.cloud_upload_rounded,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${app.outbox.length} laporan menunggu sinyal · dikirim otomatis',
+                              style: t(13, FontWeight.w400, Colors.white, 1.4),
+                            ),
+                          ),
+                          Tap(
+                            onTap: app.flushOutbox,
+                            height: 44,
+                            radius: 12,
+                            color: Colors.white.withValues(alpha: .16),
+                            label: 'Coba kirim laporan sekarang',
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Center(
+                              child: Text(
+                                'Kirim',
+                                style: t(13, w6, Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 if (empty && !_emptyClosed) ...[
                   Appear(
                     child: Container(

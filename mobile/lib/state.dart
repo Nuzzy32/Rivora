@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'dart:io';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
@@ -163,6 +165,10 @@ class AppState extends ChangeNotifier {
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     bag = (_prefs.getStringList('bag') ?? []).toSet();
+    outbox = [
+      for (final r in jsonDecode(_prefs.getString('outbox') ?? '[]') as List)
+        r as Map<String, dynamic>,
+    ];
     final saved = _prefs.getString('fc.place');
     if (saved != null) fcPlace = Place.fromJson(jsonDecode(saved));
     fcAuto = _prefs.getBool('fc.auto') ?? true;
@@ -196,6 +202,103 @@ class AppState extends ChangeNotifier {
       }
     });
     _load();
+  }
+
+  // --- Laporan offline: disimpan di HP, dikirim otomatis saat ada sinyal.
+  List<Map<String, dynamic>> outbox = [];
+  Timer? _outboxTimer;
+  bool _flushing = false;
+
+  /// Laporan yang lebih lama dari ini dibatalkan: kondisi genangan mungkin sudah berubah.
+  static const outboxMaxAge = Duration(hours: 6);
+  static const _retryLater = {'OFFLINE', 'UPLOAD', 'SERVER', 'RATE_LIMITED'};
+
+  Future<void> queueReport({
+    required LatLng pos,
+    required int depth,
+    required String name,
+    required String note,
+    required List<String> photos,
+  }) async {
+    // Foto dari kamera/galeri bisa hilang dari folder sementara; salin ke folder aplikasi.
+    final dir = await getApplicationDocumentsDirectory();
+    final id = DateTime.now().millisecondsSinceEpoch;
+    final kept = <String>[];
+    for (final (i, p) in photos.indexed) {
+      final to = '${dir.path}/outbox_${id}_$i.${p.split('.').last}';
+      await File(p).copy(to);
+      kept.add(to);
+    }
+    outbox.add({
+      'id': id,
+      'lat': pos.latitude,
+      'lng': pos.longitude,
+      'depth': depth,
+      'name': name,
+      'note': note,
+      'photos': kept,
+      'at': DateTime.now().toIso8601String(),
+    });
+    _saveOutbox();
+  }
+
+  void _saveOutbox() {
+    _prefs.setString('outbox', jsonEncode(outbox));
+    _outboxTimer?.cancel();
+    _outboxTimer = outbox.isEmpty
+        ? null
+        : Timer.periodic(const Duration(seconds: 30), (_) => flushOutbox());
+    notifyListeners();
+  }
+
+  /// Kirim antrean satu per satu. Masih offline / batas per jam = berhenti, coba lagi nanti.
+  /// ponytail: jawaban server hilang setelah laporan tersimpan bisa membuat laporan ganda; server
+  /// menggabungkannya ke titik yang sama, jadi dampaknya hanya hitungan laporan.
+  Future<void> flushOutbox() async {
+    if (_flushing || outbox.isEmpty || !loggedIn) return;
+    _flushing = true;
+    var sentAny = false;
+    try {
+      for (final r in [...outbox]) {
+        final name = r['name'] as String;
+        if (DateTime.now().difference(DateTime.parse(r['at'] as String)) >
+            outboxMaxAge) {
+          showToast(
+            'Laporan "$name" tertahan lebih dari 6 jam dan dibatalkan. Kirim ulang bila masih tergenang.',
+          );
+        } else {
+          try {
+            await Api.submitReport(
+              pos: LatLng(r['lat'] as double, r['lng'] as double),
+              depth: r['depth'] as int,
+              name: name,
+              note: r['note'] as String,
+              photos: [for (final p in r['photos'] as List) File(p as String)],
+            );
+            sentAny = true;
+            showToast('Laporan "$name" terkirim');
+          } on ApiError catch (e) {
+            // Masih offline / server sibuk / batas per jam: simpan, coba lagi nanti.
+            if (_retryLater.contains(e.code)) break;
+            showToast('Laporan "$name" ditolak server: ${e.message}');
+          }
+        }
+        for (final p in r['photos'] as List) {
+          try {
+            File(p as String).deleteSync();
+          } catch (_) {}
+        }
+        outbox.removeWhere((x) => x['id'] == r['id']);
+        _saveOutbox();
+      }
+      if (sentAny) {
+        reports = await Api.myReports();
+        if (_pointsAt != null) loadPoints(_pointsAt!);
+      }
+    } on ApiError catch (_) {
+    } finally {
+      _flushing = false;
+    }
   }
 
   // --- Real-time
@@ -248,6 +351,8 @@ class AppState extends ChangeNotifier {
       set(() => fcLoading = false);
     }
     _listenLive();
+    if (outbox.isNotEmpty) _saveOutbox(); // jadwalkan percobaan kirim
+    flushOutbox();
   }
 
   /// GET titik genangan dalam 10 km. Gagal = tetap tampilkan data terakhir + tanda offline (US-01).
@@ -541,6 +646,7 @@ class AppState extends ChangeNotifier {
     user = u;
     await _loadUserData();
     _listenLive();
+    flushOutbox();
     showToast(isNew ? 'Akun dibuat. Selamat datang!' : 'Berhasil masuk');
     go(authReturn);
   }
