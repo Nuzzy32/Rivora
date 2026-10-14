@@ -796,18 +796,47 @@ class Api {
         .select()
         .order('created_at', ascending: false)
         .limit(50);
-    return [
-      for (final r in rows)
-        Notif(
-          r['id'] as int,
-          r['title'] as String,
-          r['body'] as String,
-          _ts(r['created_at'])!,
-          (r['flood_point_id'] as int?) ?? 0,
-          unread: r['read_at'] == null,
-        ),
-    ];
+    return [for (final r in rows) _notif(r)];
   });
+
+  static Notif _notif(Map<String, dynamic> r) => Notif(
+    r['id'] as int,
+    r['title'] as String,
+    r['body'] as String,
+    _ts(r['created_at'])!,
+    (r['flood_point_id'] as int?) ?? 0,
+    unread: r['read_at'] == null,
+  );
+
+  /// Real-time: perubahan titik genangan (semua) dan notifikasi baru milik pengguna (RLS tetap berlaku).
+  static RealtimeChannel listen({
+    String? uid,
+    required void Function() onPoints,
+    required void Function(Notif) onNotif,
+  }) {
+    final ch = _db
+        .channel('live')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'flood_points',
+          callback: (_) => onPoints(),
+        );
+    if (uid != null) {
+      ch.onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'notifications',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: uid,
+        ),
+        callback: (p) => onNotif(_notif(p.newRecord)),
+      );
+    }
+    return ch..subscribe();
+  }
 
   static Future<void> markRead(int id) => _call(
     () => _db

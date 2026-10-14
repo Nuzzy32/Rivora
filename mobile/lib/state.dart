@@ -8,7 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthChangeEvent, Supabase;
+    show AuthChangeEvent, RealtimeChannel, Supabase;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'data.dart';
@@ -185,6 +185,32 @@ class AppState extends ChangeNotifier {
     _load();
   }
 
+  // --- Real-time
+  RealtimeChannel? _live;
+  Timer? _liveWait;
+
+  /// Dengarkan perubahan titik genangan & notifikasi baru; dipanggil ulang saat masuk/keluar akun.
+  /// ponytail: semua perubahan titik se-Indonesia memicu muat ulang area peta (ditunda 2 detik);
+  /// kalau ramai, saring per kab/kota dengan kolom kab + filter eq di langganan.
+  void _listenLive() {
+    _live?.unsubscribe();
+    _live = Api.listen(
+      uid: user?.id,
+      onPoints: () {
+        _liveWait?.cancel();
+        _liveWait = Timer(const Duration(seconds: 2), () {
+          if (_pointsAt != null) loadPoints(_pointsAt!);
+        });
+      },
+      onNotif: (n) {
+        if (notifs.any((x) => x.id == n.id)) return;
+        notifs.insert(0, n);
+        showToast(n.title);
+        notifyListeners();
+      },
+    );
+  }
+
   Future<void> _load() async {
     try {
       user = await Api.currentUser();
@@ -208,6 +234,7 @@ class AppState extends ChangeNotifier {
     } else {
       set(() => fcLoading = false);
     }
+    _listenLive();
   }
 
   /// GET titik genangan dalam 10 km. Gagal = tetap tampilkan data terakhir + tanda offline (US-01).
@@ -487,6 +514,7 @@ class AppState extends ChangeNotifier {
   Future<void> signedIn(User u, {required bool isNew}) async {
     user = u;
     await _loadUserData();
+    _listenLive();
     showToast(isNew ? 'Akun dibuat. Selamat datang!' : 'Berhasil masuk');
     go(authReturn);
   }
@@ -496,6 +524,7 @@ class AppState extends ChangeNotifier {
     reports = [];
     notifs = [];
     watch = [];
+    _listenLive();
     showToast(msg);
     go(Scr.account);
   }
