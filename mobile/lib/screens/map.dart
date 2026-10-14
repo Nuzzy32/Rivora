@@ -972,18 +972,20 @@ class _ForecastCard extends StatelessWidget {
                     children: [
                       Text(
                         now == null
-                            ? 'Memuat prakiraan…'
+                            ? (app.fcPlace == null
+                                  ? 'Prakiraan cuaca'
+                                  : 'Memuat prakiraan…')
                             : '${now.desc} · ${now.temp}°',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: t(17, w6, Colors.white),
                       ),
                       Text(
-                        'Kec. ${app.district} · ${f == null
+                        '${app.fcPlace?.name ?? 'Pilih lokasi prakiraan'} · ${f == null
                             ? 'BMKG'
                             : app.fcStale
-                            ? 'Data tersimpan ${hm(f.fetchedAt)}'
-                            : 'BMKG, diambil ${hm(f.fetchedAt)}'}',
+                            ? 'Data tersimpan ${f.at(f.fetchedAt)} ${f.zone}'
+                            : 'BMKG, diambil ${f.at(f.fetchedAt)} ${f.zone}'}',
                         maxLines: 2,
                         style: t(12, FontWeight.w400, Colors.white),
                       ),

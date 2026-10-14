@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -110,8 +111,9 @@ class _ForecastScreenState extends State<ForecastScreen> {
     final now = DateTime.now();
     final src = f == null
         ? 'Sumber: BMKG'
-        : 'Sumber: BMKG · ${app.fcStale ? 'data tersimpan' : 'diambil'} ${hm(f.fetchedAt)} WIB';
-    final key = '${app.district}-${app.fcSlot}';
+        : 'Sumber: BMKG · ${app.fcStale ? 'data tersimpan' : 'diambil'} ${f.at(f.fetchedAt)} ${f.zone}';
+    final place = app.fcPlace;
+    final key = '${place?.adm4}-${app.fcSlot}';
     return AnimatedContainer(
       duration: dur(context, 700),
       curve: easeOut,
@@ -160,7 +162,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                         ),
                       ),
                       Tap(
-                        onTap: () => _pickDistrict(context),
+                        onTap: () => _pickPlace(context),
                         height: 48,
                         radius: 15,
                         color: Colors.white.withValues(alpha: .22),
@@ -168,12 +170,14 @@ class _ForecastScreenState extends State<ForecastScreen> {
                           color: Colors.white.withValues(alpha: .55),
                         ),
                         padding: const EdgeInsets.fromLTRB(14, 0, 10, 0),
-                        label: 'Pilih kecamatan',
+                        label: 'Pilih lokasi prakiraan',
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.location_on_outlined,
+                            Icon(
+                              app.fcAuto && place != null
+                                  ? Icons.near_me_rounded
+                                  : Icons.location_on_outlined,
                               size: 18,
                               color: Colors.white,
                             ),
@@ -183,10 +187,17 @@ class _ForecastScreenState extends State<ForecastScreen> {
                               transitionBuilder: materialize(
                                 from: const Offset(0, 6),
                               ),
-                              child: Text(
-                                'Kec. ${app.district}',
-                                key: ValueKey(app.district),
-                                style: t(13, w6, Colors.white),
+                              child: ConstrainedBox(
+                                key: ValueKey('${place?.adm4}${place?.tag}'),
+                                constraints: const BoxConstraints(
+                                  maxWidth: 140,
+                                ),
+                                child: Text(
+                                  place?.tag ?? place?.name ?? 'Pilih lokasi',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t(13, w6, Colors.white),
+                                ),
                               ),
                             ),
                             const Icon(
@@ -205,8 +216,8 @@ class _ForecastScreenState extends State<ForecastScreen> {
                   height: 130,
                   child: ListView(
                     key: ValueKey(
-                      app.district,
-                    ), // ganti kecamatan → chip masuk ulang bertahap
+                      place?.adm4,
+                    ), // ganti lokasi → chip masuk ulang bertahap
                     controller: _chips,
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
@@ -220,6 +231,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                             dy: 14,
                             child: _SlotChip(
                               s,
+                              time: f!.at(s.time),
                               selected: i == app.fcSlot,
                               onTap: () => _select(i),
                             ),
@@ -252,7 +264,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                       if (app.fcStale) ...[
                         Appear(
                           child: Note(
-                            'Gagal memuat data terbaru. Menampilkan prakiraan tersimpan pukul ${hm(f!.fetchedAt)} WIB.',
+                            'Gagal memuat data terbaru. Menampilkan prakiraan tersimpan pukul ${f!.at(f.fetchedAt)} ${f.zone}.',
                             icon: Icons.cloud_off_rounded,
                             bg: C.ink,
                             fg: Colors.white,
@@ -368,11 +380,26 @@ class _ForecastScreenState extends State<ForecastScreen> {
         ),
         const SizedBox(height: 14),
         Text(
-          app.fcLoading
-              ? 'Memuat prakiraan Kec. ${app.district}…'
-              : 'Prakiraan Kec. ${app.district} belum tersedia. Coba lagi sebentar lagi.',
+          app.fcPlace == null
+              ? 'Pilih lokasi untuk melihat prakiraan BMKG di mana pun di Indonesia.'
+              : app.fcLoading
+              ? 'Memuat prakiraan ${app.fcPlace!.name}…'
+              : 'Prakiraan ${app.fcPlace!.name} belum tersedia. Coba lagi sebentar lagi.',
           style: t(13, w5, Colors.white),
         ),
+        if (app.fcPlace == null && !app.fcLoading) ...[
+          const SizedBox(height: 12),
+          Btn(
+            'Gunakan lokasi saat ini',
+            icon: Icons.near_me_rounded,
+            height: 44,
+            radius: 14,
+            fontSize: 14,
+            color: Colors.white,
+            fg: C.blueMid,
+            onTap: app.useMyLocation,
+          ),
+        ],
       ],
     ),
   );
@@ -471,7 +498,10 @@ class _ForecastScreenState extends State<ForecastScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(cur.desc, style: t(26, w7, Colors.white)),
-              Text('Pukul ${hm(cur.time)} WIB', style: t(14, w5, Colors.white)),
+              Text(
+                'Pukul ${f.at(cur.time)} ${f.zone}',
+                style: t(14, w5, Colors.white),
+              ),
               if (f.rainLine != null)
                 Container(
                   margin: const EdgeInsets.only(top: 8),
@@ -565,65 +595,14 @@ class _ForecastScreenState extends State<ForecastScreen> {
     ),
   );
 
-  void _pickDistrict(BuildContext context) => showModalBottomSheet(
+  void _pickPlace(BuildContext context) => showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
     backgroundColor: Colors.white,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
     ),
-    builder: (ctx) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDDE3EE),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(6, 14, 6, 8),
-              child: Text('Pilih kecamatan', style: t(17, w7)),
-            ),
-            for (final (i, d) in Api.districts.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Appear(
-                  index: i,
-                  child: Tap(
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      app.loadForecast(d);
-                    },
-                    height: 52,
-                    radius: 16,
-                    color: d == app.district ? C.blueTint : Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text('Kec. $d', style: t(14, w5))),
-                        if (d == app.district)
-                          const Icon(
-                            Icons.check_circle_rounded,
-                            size: 22,
-                            color: C.blue,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    ),
+    builder: (_) => const _PlaceSheet(),
   );
 }
 
@@ -632,14 +611,20 @@ class _SlotChip extends StatelessWidget {
   final Slot s;
   final bool selected;
   final VoidCallback onTap;
-  const _SlotChip(this.s, {required this.selected, required this.onTap});
+  final String time; // jam menurut zona waktu lokasi
+  const _SlotChip(
+    this.s, {
+    required this.time,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final fg = selected ? C.violetMid : Colors.white;
     return Semantics(
       selected: selected,
-      label: 'Pukul ${hm(s.time)}, ${s.desc}, ${s.temp} derajat',
+      label: 'Pukul $time, ${s.desc}, ${s.temp} derajat',
       child: AnimatedScale(
         scale: selected ? 1.04 : 1,
         duration: dur(context, 260),
@@ -663,9 +648,16 @@ class _SlotChip extends StatelessWidget {
               builder: (context, c, _) => Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(hm(s.time), style: t(12, w6, c!)),
+                  // Satu baris & mengecil sendiri: chip tetap rapi pada ukuran huruf besar.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(time, maxLines: 1, style: t(12, w6, c!)),
+                  ),
                   WxAnim(s.kind, size: 44, live: selected),
-                  Text('${s.temp}°', style: t(18, w6, c)),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('${s.temp}°', maxLines: 1, style: t(18, w6, c)),
+                  ),
                 ],
               ),
             ),
@@ -934,4 +926,330 @@ class _SkyPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SkyPainter old) => old.kind != kind;
+}
+
+/// Pilih lokasi prakiraan se-Indonesia: lokasi saat ini (GPS), cari kelurahan/kecamatan/kota, atau favorit.
+class _PlaceSheet extends StatefulWidget {
+  const _PlaceSheet();
+
+  @override
+  State<_PlaceSheet> createState() => _PlaceSheetState();
+}
+
+class _PlaceSheetState extends State<_PlaceSheet> {
+  final _q = TextEditingController();
+  Timer? _wait;
+  List<Place>? _hits;
+  String? _err;
+
+  @override
+  void dispose() {
+    _wait?.cancel();
+    _q.dispose();
+    super.dispose();
+  }
+
+  void _search(String q) {
+    _wait?.cancel();
+    if (q.trim().length < 3) {
+      _hits = _err = null;
+      return;
+    }
+    _wait = Timer(const Duration(milliseconds: 350), () async {
+      try {
+        final r = await Api.searchRegions(q);
+        if (mounted && _q.text == q) {
+          setState(() {
+            _hits = r;
+            _err = null;
+          });
+        }
+      } on ApiError catch (e) {
+        if (mounted) {
+          setState(() {
+            _hits = null;
+            _err = e.message;
+          });
+        }
+      }
+    });
+  }
+
+  void _pick(Place p) {
+    Navigator.pop(context);
+    app.loadForecast(app.favs.where((f) => f.adm4 == p.adm4).firstOrNull ?? p);
+  }
+
+  Future<void> _star(Place p) async {
+    if (app.isFav(p)) return setState(() => app.toggleFav(p));
+    final tag = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Simpan ${p.name} sebagai', style: t(17, w7)),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final l in const [
+                    'Rumah',
+                    'Kantor',
+                    'Kampus',
+                    'Sekolah',
+                    'Lainnya',
+                  ])
+                    Tap(
+                      onTap: () => Navigator.pop(ctx, l),
+                      height: 44,
+                      radius: 14,
+                      color: C.blueTint,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Center(
+                        child: Text(l, style: t(14, w6, C.blueInk)),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (tag != null) {
+      setState(() => app.toggleFav(p, tag == 'Lainnya' ? null : tag));
+    }
+  }
+
+  Widget _tile(
+    Place p, {
+    IconData icon = Icons.location_on_outlined,
+    String? title,
+  }) {
+    final on = app.fcPlace?.adm4 == p.adm4;
+    final fav = app.isFav(p);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Tap(
+        onTap: () => _pick(p),
+        radius: 16,
+        color: on ? C.blueTint : Colors.white,
+        padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+        label: '${title ?? p.name}, ${p.sub}',
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: on ? C.blue : C.sub),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title ?? p.name, style: t(14, w6)),
+                  Text(
+                    p.sub,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: t(12, FontWeight.w400, C.muted),
+                  ),
+                ],
+              ),
+            ),
+            Semantics(
+              button: true,
+              label: fav ? 'Hapus dari favorit' : 'Simpan sebagai favorit',
+              child: IconButton(
+                onPressed: () => _star(p),
+                icon: Icon(
+                  fav ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: fav ? const Color(0xFFF4B92F) : C.faint,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final searching = _q.text.trim().length >= 3;
+    final here = app.fcAuto ? app.fcPlace : null;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * .85,
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDE3EE),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 14, 22, 10),
+                child: Text('Lokasi prakiraan', style: t(17, w7)),
+              ),
+              Container(
+                height: 50,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: C.bg,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search_rounded, size: 22, color: C.ink),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _q,
+                        onChanged: (v) => setState(() => _search(v)),
+                        textInputAction: TextInputAction.search,
+                        style: t(14),
+                        decoration: InputDecoration.collapsed(
+                          hintText: 'Cari kelurahan, kecamatan, atau kota',
+                          hintStyle: t(14, FontWeight.w400, C.faint),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  children: searching
+                      ? [
+                          if (_err != null)
+                            Note(_err!, icon: Icons.cloud_off_rounded)
+                          else if (_hits == null)
+                            const Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (_hits!.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Text(
+                                'Tidak ditemukan. Coba nama kelurahan, kecamatan, atau kota lain.',
+                                textAlign: TextAlign.center,
+                                style: t(13, FontWeight.w400, C.muted),
+                              ),
+                            ),
+                          for (final p in _hits ?? const <Place>[]) _tile(p),
+                        ]
+                      : [
+                          // Lokasi saat ini: mengikuti GPS sampai pengguna memilih lokasi lain.
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Tap(
+                              onTap: () {
+                                Navigator.pop(context);
+                                app.useMyLocation();
+                              },
+                              radius: 16,
+                              color: app.fcAuto ? C.blueTint : Colors.white,
+                              padding: const EdgeInsets.all(12),
+                              label: 'Gunakan lokasi saat ini',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.near_me_rounded,
+                                    size: 22,
+                                    color: app.fcAuto ? C.blue : C.sub,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Lokasi saat ini',
+                                          style: t(14, w6),
+                                        ),
+                                        Text(
+                                          here != null
+                                              ? '${here.label} · bisa meleset di perbatasan, pilih manual bila perlu'
+                                              : app.locDenied
+                                              ? 'Izinkan akses lokasi untuk memakai GPS'
+                                              : 'Desa/kelurahan terdekat dari GPS',
+                                          style: t(
+                                            12,
+                                            FontWeight.w400,
+                                            C.muted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (app.favs.isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(6, 10, 6, 6),
+                              child: Text('Favorit', style: t(13, w6, C.sub)),
+                            ),
+                            for (final p in app.favs)
+                              _tile(
+                                p,
+                                icon: switch (p.tag) {
+                                  'Rumah' => Icons.home_rounded,
+                                  'Kantor' => Icons.work_rounded,
+                                  'Kampus' || 'Sekolah' => Icons.school_rounded,
+                                  _ => Icons.star_rounded,
+                                },
+                                title: p.tag == null
+                                    ? p.name
+                                    : '${p.tag} · ${p.name}',
+                              ),
+                          ],
+                          // Lokasi yang sedang dipakai tapi belum favorit: tawarkan untuk disimpan.
+                          if (app.fcPlace != null &&
+                              !app.fcAuto &&
+                              !app.isFav(app.fcPlace!)) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(6, 10, 6, 6),
+                              child: Text(
+                                'Sedang dipakai',
+                                style: t(13, w6, C.sub),
+                              ),
+                            ),
+                            _tile(app.fcPlace!),
+                          ],
+                        ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -5,26 +5,27 @@ void main() {
   test(
     'rain line: reda di slot pertama yang tidak hujan, kosong kalau tidak hujan',
     () {
-      final t0 = DateTime(2026, 10, 13, 15);
+      // 08.00 UTC = 15.00 WIB = 16.00 WITA = 17.00 WIT; jam tampil menurut zona lokasi, bukan zona HP.
+      final t0 = DateTime.utc(2026, 10, 13, 8);
+      const p = Place('35.78.22.1001', 'Gayungan', 'Gayungan, Kota Surabaya');
       Slot s(int h, String k) =>
           Slot(t0.add(Duration(hours: h)), k, 27, 30, 2, 10, 80, k);
+      Forecast f(String tz, List<Slot> slots) => Forecast(p, tz, slots, t0);
+      final rain = [s(0, 'heavy'), s(3, 'storm'), s(6, 'nightcloud')];
       expect(
-        Forecast(
-          'X',
-          [s(0, 'heavy'), s(3, 'storm'), s(6, 'nightcloud')],
-          t0,
-          null,
-        ).rainLine,
-        'Hujan diperkirakan reda sekitar 21.00',
+        f('Asia/Jakarta', rain).rainLine,
+        'Hujan diperkirakan reda sekitar 21.00 WIB',
       );
       expect(
-        Forecast('X', [s(0, 'rain'), s(3, 'heavy')], t0, null).rainLine,
+        f('Asia/Jayapura', rain).rainLine,
+        'Hujan diperkirakan reda sekitar 23.00 WIT',
+      );
+      expect(f('Asia/Makassar', rain).at(t0), '16.00');
+      expect(
+        f('Asia/Jakarta', [s(0, 'rain'), s(3, 'heavy')]).rainLine,
         'Hujan diperkirakan berlanjut lebih dari 24 jam',
       );
-      expect(
-        Forecast('X', [s(0, 'sun'), s(3, 'heavy')], t0, null).rainLine,
-        isNull,
-      );
+      expect(f('Asia/Jakarta', [s(0, 'sun'), s(3, 'heavy')]).rainLine, isNull);
     },
   );
 

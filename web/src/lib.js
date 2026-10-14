@@ -87,7 +87,7 @@ export function useLoad(fn, deps = [], poll = 0) {
   return { ...s, reload: () => setN(x => x + 1) }
 }
 
-// Ringkasan prakiraan dari forecast_cache: slot hujan terdekat (12 jam) di semua kecamatan.
+// Ringkasan prakiraan dari forecast_cache (desa yang pernah dibuka pengguna): slot hujan terdekat 12 jam.
 const RAIN = { storm: 3, heavy: 2, rain: 1, nightrain: 1 }
 export function rainSummary(rows) {
   if (!rows?.length) return null
@@ -95,7 +95,7 @@ export function rainSummary(rows) {
   const hits = []
   for (const r of rows) for (const s of r.forecast_json?.slots || []) {
     const t = Date.parse(s.time)
-    if (RAIN[s.kind] && t + 3 * 3600e3 > Date.now() && t < until) hits.push({ ...s, t, district: r.district })
+    if (RAIN[s.kind] && t + 3 * 3600e3 > Date.now() && t < until) hits.push({ ...s, t, district: r.regions?.name ?? r.adm4 })
   }
   const fetched = rows.reduce((m, r) => (r.fetched_at > m ? r.fetched_at : m), rows[0].fetched_at)
   const warning = rows.map(r => r.forecast_json?.warning).find(Boolean) || null

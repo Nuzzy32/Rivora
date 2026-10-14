@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
@@ -104,7 +105,14 @@ class AppState extends ChangeNotifier {
   List<RiskArea> risk = [];
 
   Forecast? forecast;
-  String district = 'Gayungan';
+
+  /// Lokasi prakiraan (disimpan di HP). fcAuto = mengikuti GPS ("Lokasi saat ini").
+  Place? fcPlace;
+  bool fcAuto = true;
+
+  /// Lokasi favorit prakiraan (maks. 5, di HP). Terpisah dari lokasi pantauan: tidak memicu
+  /// notifikasi banjir dan bisa dipakai tamu tanpa akun.
+  List<Place> favs = [];
   int fcSlot = 0;
   bool fcLoading = true;
   bool fcStale = false;
@@ -142,6 +150,13 @@ class AppState extends ChangeNotifier {
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     bag = (_prefs.getStringList('bag') ?? []).toSet();
+    final saved = _prefs.getString('fc.place');
+    if (saved != null) fcPlace = Place.fromJson(jsonDecode(saved));
+    fcAuto = _prefs.getBool('fc.auto') ?? true;
+    favs = [
+      for (final f in _prefs.getStringList('fc.favs') ?? [])
+        Place.fromJson(jsonDecode(f)),
+    ];
     if (_prefs.getBool('onboarded') ?? false) {
       screen = Scr.map;
       locate(ask: false);
@@ -172,7 +187,12 @@ class AppState extends ChangeNotifier {
       showToast(e.message);
     }
     await loadPoints(mapCenter ?? center);
-    loadForecast(district);
+    // Belum ada lokasi tersimpan: tunggu GPS (_followGps) atau pengguna memilih sendiri.
+    if (fcPlace != null) {
+      loadForecast(fcPlace!, auto: fcAuto);
+    } else {
+      set(() => fcLoading = false);
+    }
   }
 
   /// GET titik genangan dalam 10 km. Gagal = tetap tampilkan data terakhir + tanda offline (US-01).
@@ -205,20 +225,58 @@ class AppState extends ChangeNotifier {
     watch = r[2] as List<WatchLoc>;
   }
 
-  Future<void> loadForecast(String d) async {
-    district = d;
+  Future<void> loadForecast(Place p, {bool auto = false}) async {
+    fcPlace = p;
+    fcAuto = auto;
+    _prefs.setString('fc.place', jsonEncode(p.toJson()));
+    _prefs.setBool('fc.auto', auto);
     fcSlot = 0;
     fcLoading = true;
     notifyListeners();
     try {
-      forecast = await Api.forecast(d);
+      forecast = await Api.forecast(p);
       fcStale = forecast?.stale ?? false;
     } catch (_) {
-      fcStale =
-          forecast !=
-          null; // US-09: tampilkan cache terakhir, bukan layar kosong
+      // US-09: tampilkan cache terakhir, tapi jangan pernah prakiraan lokasi lain.
+      if (forecast?.place.adm4 != p.adm4) forecast = null;
+      fcStale = forecast != null;
     }
     fcLoading = false;
+    notifyListeners();
+  }
+
+  /// "Lokasi saat ini": prakiraan mengikuti desa terdekat dari GPS.
+  Future<void> useMyLocation() async {
+    fcAuto = true;
+    _prefs.setBool('fc.auto', true);
+    await locate();
+    if (userPos == null) {
+      showToast('Izinkan lokasi untuk memakai lokasi saat ini');
+    }
+  }
+
+  Future<void> _followGps() async {
+    try {
+      final p = await Api.villageAt(userPos!);
+      if (p != null && p.adm4 != fcPlace?.adm4) {
+        await loadForecast(p, auto: true);
+      }
+    } on ApiError catch (_) {} // offline: tetap lokasi terakhir
+  }
+
+  bool isFav(Place p) => favs.any((f) => f.adm4 == p.adm4);
+
+  void toggleFav(Place p, [String? tag]) {
+    if (isFav(p)) {
+      favs.removeWhere((f) => f.adm4 == p.adm4);
+    } else if (favs.length >= 5) {
+      return showToast('Maksimal 5 lokasi favorit. Hapus salah satu dulu.');
+    } else {
+      favs.add(p.withTag(tag));
+    }
+    _prefs.setStringList('fc.favs', [
+      for (final f in favs) jsonEncode(f.toJson()),
+    ]);
     notifyListeners();
   }
 
@@ -295,9 +353,8 @@ class AppState extends ChangeNotifier {
           timeLimit: Duration(seconds: 10),
         ),
       );
-      final here = LatLng(pos.latitude, pos.longitude);
-      // Wilayah awal hanya Surabaya: di luar kota, peta tetap dipusatkan ke Balai Kota.
-      userPos = meters(here, balaiKota) < 40000 ? here : null;
+      userPos = LatLng(pos.latitude, pos.longitude);
+      if (fcAuto) _followGps();
     } catch (_) {}
     notifyListeners();
   }

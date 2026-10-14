@@ -113,7 +113,7 @@ function Shell({ me }) {
 
   const pending = useLoad(() => sb.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending').then(r => r.count), [], 30000)
   const settings = useLoad(() => call(sb.from('app_settings').select('*').single()))
-  const forecast = useLoad(() => call(sb.from('forecast_cache').select('district, forecast_json, fetched_at')).then(rainSummary), [], 15 * 60000)
+  const forecast = useLoad(() => call(sb.from('forecast_cache').select('adm4, forecast_json, fetched_at, regions(name)')).then(rainSummary), [], 15 * 60000)
 
   const app = {
     me, admin, settings: settings.data, reloadSettings: settings.reload, forecast: forecast.data,

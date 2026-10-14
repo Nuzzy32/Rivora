@@ -7,6 +7,11 @@ import 'package:sigap_banjir/state.dart';
 
 /// Smoke test: semua layar + transisi + sheet + ganti slot prakiraan dirender tanpa error/overflow.
 void main() {
+  const place = Place(
+    '35.78.22.1001',
+    'Gayungan',
+    'Gayungan, Gayungan, Kota Surabaya, Jawa Timur',
+  );
   for (final (size, scale) in const [
     (Size(402, 874), 1.0),
     (Size(360, 740), 1.3),
@@ -42,8 +47,10 @@ void main() {
               'history': null,
             }),
           ]
+          ..fcPlace = place
           ..forecast = Forecast(
-            'Gayungan',
+            place,
+            'Asia/Jakarta',
             [
               for (var i = 0; i < 6; i++)
                 Slot(

@@ -132,12 +132,55 @@ class Slot {
       const ['heavy', 'storm', 'rain', 'nightrain'].contains(kind);
 }
 
+/// Lokasi prakiraan: kode desa BMKG (adm4) + nama. label = "Ketintang, Gayungan, Kota Surabaya, Jawa Timur".
+/// tag = nama favorit (Rumah, Kantor, …).
+class Place {
+  final String adm4, name, label;
+  final String? tag;
+  const Place(this.adm4, this.name, this.label, [this.tag]);
+
+  /// Induk wilayahnya saja ("Gayungan, Kota Surabaya, Jawa Timur").
+  String get sub =>
+      label.startsWith('$name, ') ? label.substring(name.length + 2) : label;
+  Place withTag(String? t) => Place(adm4, name, label, t);
+  Map<String, Object?> toJson() => {
+    'adm4': adm4,
+    'name': name,
+    'label': label,
+    'tag': tag,
+  };
+  factory Place.fromJson(Map<String, dynamic> j) => Place(
+    j['adm4'] as String,
+    j['name'] as String,
+    j['label'] as String,
+    j['tag'] as String?,
+  );
+}
+
 class Forecast {
-  final String district;
+  final Place place;
+  final String tz; // Asia/Jakarta | Asia/Makassar | Asia/Jayapura
   final List<Slot> slots;
   final DateTime fetchedAt;
   final String? warning;
-  const Forecast(this.district, this.slots, this.fetchedAt, this.warning);
+  const Forecast(
+    this.place,
+    this.tz,
+    this.slots,
+    this.fetchedAt, [
+    this.warning,
+  ]);
+  Forecast withWarning(String w) => Forecast(place, tz, slots, fetchedAt, w);
+
+  int get _offset => tz == 'Asia/Jayapura'
+      ? 9
+      : tz == 'Asia/Makassar'
+      ? 8
+      : 7;
+  String get zone => const {7: 'WIB', 8: 'WITA', 9: 'WIT'}[_offset]!;
+
+  /// Jam menurut zona waktu lokasi, bukan zona HP: prakiraan Jayapura tetap WIT walau dibuka di Surabaya.
+  String at(DateTime t) => hm(t.toUtc().add(Duration(hours: _offset)));
 
   /// Data lebih tua dari 2 jam = gagal diperbarui; tampilkan dengan keterangan waktunya (US-09).
   bool get stale => DateTime.now().difference(fetchedAt).inHours >= 2;
@@ -148,7 +191,7 @@ class Forecast {
     final dry = slots.where((s) => !s.rainy).firstOrNull;
     return dry == null
         ? 'Hujan diperkirakan berlanjut lebih dari 24 jam'
-        : 'Hujan diperkirakan reda sekitar ${hm(dry.time)}';
+        : 'Hujan diperkirakan reda sekitar ${at(dry.time)} $zone';
   }
 }
 
@@ -425,38 +468,80 @@ class Api {
   });
 
   // --- Prakiraan (diisi Edge Function `bmkg-forecast` tiap jam)
-  static const districts = [
-    'Gayungan',
-    'Wonokromo',
-    'Gubeng',
-    'Tegalsari',
-    'Rungkut',
-    'Benowo',
-  ];
+  /// Cari kelurahan/kecamatan/kota se-Indonesia. Kecamatan & kota memakai desa wakilnya untuk prakiraan.
+  static Future<List<Place>> searchRegions(String q) => _call(() async {
+    final rows =
+        await _db.rpc('search_regions', params: {'q': q.trim()}) as List;
+    return [
+      for (final r in rows)
+        if (r['adm4'] != null)
+          Place(r['adm4'] as String, r['name'] as String, r['label'] as String),
+    ];
+  });
 
-  static Future<Forecast?> forecast(String district) => _call(() async {
-    final r =
-        (await _keep(
-              'forecast.$district',
-              () => _db
-                  .from('forecast_cache')
-                  .select()
-                  .eq('district', district)
-                  .maybeSingle(),
-            )).$1
-            as Map<String, dynamic>?;
-    if (r == null) return null;
-    final j = r['forecast_json'] as Map<String, dynamic>;
+  /// GPS → desa/kelurahan terdekat (titik tengah terdekat; bisa meleset di perbatasan).
+  static Future<Place?> villageAt(LatLng at) => _call(() async {
+    final rows =
+        await _db.rpc(
+              'village_at',
+              params: {'lat': at.latitude, 'lng': at.longitude},
+            )
+            as List;
+    final r = rows.firstOrNull;
+    return r == null
+        ? null
+        : Place(r['code'] as String, r['name'] as String, r['label'] as String);
+  });
+
+  /// Prakiraan BMKG satu desa. Cache server kosong/lebih dari 1 jam → Edge Function mengambil dari BMKG
+  /// (sekali untuk semua pengguna). Gagal/kuota penuh → data lama; offline → cache di HP (_keep).
+  static Future<Forecast?> forecast(Place place) => _call(() async {
+    final (data, _) = await _keep('forecast.${place.adm4}', () async {
+      final rows =
+          await _db.rpc('forecast_for', params: {'adm4': place.adm4}) as List;
+      var r = rows.firstOrNull as Map<String, dynamic>?;
+      if (r == null) return null;
+      final at = _ts(r['fetched_at']);
+      if (r['forecast_json'] == null ||
+          at == null ||
+          DateTime.now().difference(at).inMinutes >= 60) {
+        try {
+          final res = await _db.functions.invoke(
+            'bmkg-forecast',
+            body: {'adm4': place.adm4},
+          );
+          final d = res.data as Map<String, dynamic>;
+          if (d['forecast_json'] != null) {
+            r = {
+              ...r,
+              'forecast_json': d['forecast_json'],
+              'fetched_at': d['fetched_at'],
+            };
+          }
+        } on FunctionException catch (
+          _
+        ) {} // kuota penuh / BMKG gangguan: pakai yang ada
+      }
+      return r;
+    });
+    final r = data as Map<String, dynamic>?;
+    if (r == null || r['forecast_json'] == null) return null;
     final now = DateTime.now().subtract(const Duration(hours: 3));
-    return Forecast(
-      district,
+    final f = Forecast(
+      place,
+      r['tz'] as String,
       [
-        for (final s in j['slots'] as List)
+        for (final s in r['forecast_json']['slots'] as List)
           Slot.fromJson(s as Map<String, dynamic>),
       ].where((s) => s.time.isAfter(now)).toList(),
       _ts(r['fetched_at'])!,
-      j['warning'] as String?,
     );
+    final w = (r['warnings'] as List?)?.firstOrNull as Map<String, dynamic>?;
+    return w == null
+        ? f
+        : f.withWarning(
+            '${w['headline'] ?? w['event']}. Berlaku hingga ${f.at(_ts(w['expires'])!)} ${f.zone}.',
+          );
   });
 
   // --- Akun
