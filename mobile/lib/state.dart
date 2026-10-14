@@ -277,6 +277,11 @@ class AppState extends ChangeNotifier {
     _prefs.setStringList('fc.favs', [
       for (final f in favs) jsonEncode(f.toJson()),
     ]);
+    // Lokasi yang sedang dipakai ikut memakai nama favoritnya (tombol lokasi menampilkan "Kantor").
+    if (fcPlace?.adm4 == p.adm4) {
+      fcPlace = isFav(p) ? p.withTag(tag) : p.withTag(null);
+      _prefs.setString('fc.place', jsonEncode(fcPlace!.toJson()));
+    }
     notifyListeners();
   }
 
