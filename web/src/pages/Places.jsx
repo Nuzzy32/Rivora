@@ -17,7 +17,7 @@ export default function Places() {
   const places = useLoad(() => call(sb.rpc('shelters_list', { region: rc ?? null })), [rc])
   const contacts = useLoad(() => call(sb.from('emergency_contacts').select('*, regions(name)').order('sort_order').order('id')))
   // Kontak nasional selalu tampil; kontak daerah hanya yang ada di wilayah terpilih.
-  const shownContacts = (contacts.data || []).filter(c => !c.region || !rc || c.region.startsWith(rc))
+  const shownContacts = (contacts.data || []).filter(c => !c.region || !rc || c.region.startsWith(rc) || rc.startsWith(c.region + '.'))
   const shownPlaces = (places.data || []).filter(x => x.type === tab && inRegion(x.adm4, rc))
   const isPlaces = tab !== 'kontak'
   const cur = isPlaces ? places : contacts
@@ -230,7 +230,7 @@ function Importer({ kind, contacts, onClose, onDone, fail }) {
     const codes = isContact ? [...new Set(raw.map(r => get(r, 'kode_wilayah')).filter(Boolean))] : []
     let known = new Set()
     if (codes.length) {
-      try { known = new Set((await call(sb.from('regions').select('code').in('code', codes).eq('level', 2))).map(x => x.code)) } catch (e) { return fail(e) }
+      try { known = new Set((await call(sb.from('regions').select('code').in('code', codes).in('level', [1, 2]))).map(x => x.code)) } catch (e) { return fail(e) }
     }
     const seen = new Set(contacts.map(c => c.phone.replace(/\D/g, '') + '|' + (c.region || '')))
     raw.forEach((r, i) => {
@@ -242,7 +242,7 @@ function Importer({ kind, contacts, onClose, onDone, fail }) {
         const kat = get(r, 'kategori').toLowerCase(), kode = get(r, 'kode_wilayah')
         if (!tel) return bad('telepon wajib untuk kontak')
         if (!CONTACT_CATEGORIES[kat]) return bad(`kategori "${kat}" tidak dikenal (pakai: ${Object.keys(CONTACT_CATEGORIES).join(', ')})`)
-        if (kode && !known.has(kode)) return bad(`kode_wilayah "${kode}" bukan kab/kota (contoh: 35.78)`)
+        if (kode && !known.has(kode)) return bad(`kode_wilayah "${kode}" bukan provinsi/kab/kota (contoh: 35 atau 35.78)`)
         const key = tel.replace(/\D/g, '') + '|' + kode
         if (seen.has(key)) { skipped++; return }
         seen.add(key)
@@ -277,7 +277,7 @@ function Importer({ kind, contacts, onClose, onDone, fail }) {
         <span className="lbl">Kolom</span>
         <span className="mono" style={{ fontSize: 12 }}>{cols.join(', ')}</span>
         <span className="sub" style={{ lineHeight: 1.5 }}>{isContact
-          ? 'kategori: ' + Object.keys(CONTACT_CATEGORIES).join(', ') + '. kode_wilayah = kode kab/kota Kemendagri (mis. 35.78 Kota Surabaya); kosongkan untuk nomor nasional. Nomor yang sudah ada di wilayah yang sama dilewati.'
+          ? 'kategori: ' + Object.keys(CONTACT_CATEGORIES).join(', ') + '. kode_wilayah = kode provinsi atau kab/kota Kemendagri (mis. 35 Jawa Timur, 35.78 Kota Surabaya); kosongkan untuk nomor nasional. Nomor yang sudah ada di wilayah yang sama dilewati.'
           : 'lat/lng desimal (mis. -7.2575, 112.7521). status: open, full, atau closed (kosong = open).'}</span>
         <button className="link" style={{ alignSelf: 'flex-start' }} onClick={template}><Icon n="download" size={18} />Unduh templat</button>
       </div>

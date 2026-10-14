@@ -26,7 +26,8 @@ class EmergencyScreen extends StatelessWidget {
     // Kontak nasional + kontak kab/kota tempat pengguna berada (GPS, atau lokasi prakiraan).
     final adm4 = app.contactAdm4;
     final contacts = app.contacts.where((c) => c.appliesTo(adm4)).toList()
-      ..sort((a, b) => (a.region == null ? 1 : 0) - (b.region == null ? 1 : 0));
+      // Kab/kota dulu, lalu provinsi, lalu nasional.
+      ..sort((a, b) => (b.region?.length ?? 0) - (a.region?.length ?? 0));
     final local = contacts.any((c) => c.region != null);
     final posko = app.shelters.where((s) => s.type == 'posko').toList()
       ..sort(
