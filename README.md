@@ -8,7 +8,7 @@ Tinggi air, waktu pembaruan, dan sumbernya, supaya warga bisa memutuskan rute at
 ![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.11-0175C2?logo=dart&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20PostGIS-3FCF8E?logo=supabase&logoColor=white)
-![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-lightgrey)
 ![SDG 11.5](https://img.shields.io/badge/SDG-11.5-F99D26)
 
 <br>
@@ -38,6 +38,7 @@ SIGAP Banjir menjawab satu pertanyaan: **jalan atau lokasi ini aman dilalui atau
 | **Radar hujan** | Animasi radar 2 jam terakhir dari Rain Viewer. |
 | **Riwayat & area rawan** | Estimasi lama surut (median, hanya jika ada ≥ 5 kejadian), grafik kejadian 12 bulan, dan lapisan area rawan. |
 | **Darurat** | Panggil 112 sekali ketuk, kontak BPBD dan Damkar, posko serta faskes terdekat, dan panduan siaga banjir yang tetap bisa dibuka offline. |
+| **Panel web** | Verifikator meninjau antrean laporan (foto, peta mini, reputasi pelapor yang disamarkan, tanda duplikat, koreksi kategori), menandai surut, dan menerbitkan status *Resmi* dari BPBD/Pemkot. Admin mengelola posko, faskes, kontak darurat, peran dan blokir akun, ambang notifikasi, serta melihat log aktivitas. |
 | **Mode Tamu** | Peta, prakiraan, dan posko bisa dilihat tanpa daftar. Login hanya diminta untuk melapor dan memantau. |
 
 ## Arsitektur
@@ -45,6 +46,7 @@ SIGAP Banjir menjawab satu pertanyaan: **jalan atau lokasi ini aman dilalui atau
 ```mermaid
 flowchart LR
     App["Aplikasi Flutter<br/>(warga & tamu)"]
+    Web["Panel web React<br/>(verifikator & admin)"]
     subgraph Supabase
         Auth[Auth]
         DB[("Postgres + PostGIS<br/>RLS, trigger, RPC")]
@@ -53,6 +55,8 @@ flowchart LR
         Cron[pg_cron]
     end
     App -- "publishable key" --> Auth
+    Web -- "publishable key" --> Auth
+    Web -- RPC --> DB
     App --> DB
     App --> Storage
     Cron -- "tiap jam" --> Fn
@@ -67,6 +71,8 @@ Hampir semua aturan bisnis dijaga di database, bukan di aplikasi:
 - **RLS di setiap tabel.** Koordinat pelapor hanya bisa dibaca pemiliknya dan verifikator, sementara warga lain hanya melihat titik genangan.
 - **Trigger laporan** menegakkan batas 5 laporan per jam, mewajibkan foto berada di folder pemiliknya, dan menggabungkan laporan dalam radius 100 m.
 - **Trigger notifikasi** hanya berjalan saat titik menjadi *Terverifikasi/Resmi* selutut ke atas, atau saat titik surut.
+- **Aksi panel lewat RPC & trigger.** Setujui/tolak, tandai surut, status Resmi, ubah peran, blokir, dan ubah pengaturan dicatat ke log aktivitas oleh database; klien tidak bisa menulis log sendiri.
+- **Ambang & batas di tabel `app_settings`.** Batas laporan per jam, radius gabung, batas "Perlu Konfirmasi", dan ambang notifikasi diubah Admin dari panel tanpa deploy ulang.
 - **pg_cron** menandai laporan basi tiap 10 menit, menghitung ulang area rawan tiap hari, dan memanggil BMKG tiap jam.
 
 ## Struktur repo
@@ -78,6 +84,8 @@ mobile/                 Aplikasi Flutter
   lib/motion.dart       Animasi bersama (menghormati "Kurangi Gerakan")
   lib/screens/          14 layar: peta, prakiraan, lapor, akun, darurat, …
   assets/guide.json     Panduan siaga (offline)
+web/                    Panel web Verifikator & Admin (Vite + React + Leaflet)
+  src/pages/            Dasbor, antrean, status lokasi, posko/kontak, pengguna
 supabase/
   migrations/           Skema, RLS, trigger, RPC, storage, jadwal cron
   functions/            Edge Function bmkg-forecast
@@ -117,7 +125,25 @@ flutter run --dart-define-from-file=env.json
 
 `env.json` tidak masuk git. Aplikasi hanya memakai publishable key; secret key tinggal di Vault dan Edge Function.
 
-**3. Tes**
+**3. Panel web**
+
+```bash
+cd web
+cp .env.example .env.local     # isi sama dengan mobile/env.json
+npm install
+npm run dev
+```
+
+Panel hanya bisa dimasuki akun berperan Verifikator atau Admin. Admin pertama diangkat sekali lewat SQL editor:
+
+```sql
+update public.profiles set role = 'admin'
+where id = (select id from auth.users where email = '<email-kamu>');
+```
+
+Admin berikutnya dan Verifikator bisa diatur dari halaman Pengguna di panel.
+
+**4. Tes**
 
 ```bash
 cd mobile && flutter test
@@ -129,7 +155,7 @@ Tes membuka semua layar beserta transisinya di layar 402 dp dan 360 dp dengan uk
 
 - [x] Aplikasi mobile: 14 layar, mode Tamu, animasi transisi
 - [x] Backend Supabase: skema, RLS, laporan, verifikasi, notifikasi (data), prakiraan BMKG
-- [ ] Panel web Verifikator & Admin
+- [x] Panel web Verifikator & Admin: 6 layar, RPC dan log aktivitas di database
 - [ ] Notifikasi push (FCM)
 - [ ] Cache peta offline setelah aplikasi ditutup
 
