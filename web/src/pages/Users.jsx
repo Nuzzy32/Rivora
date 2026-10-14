@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../App'
 import { sb, call, useLoad, ini, ROLES, DEPTHS, dayMon, hm, reportCode } from '../lib'
-import { Icon, Seg, LoadError, Spinner, Empty } from '../ui'
+import { Icon, Seg, LoadError, Spinner, Empty, Drawer, RegionPicker } from '../ui'
 
 export default function Users() {
   const [tab, setTab] = useState('users')
@@ -22,8 +22,15 @@ export default function Users() {
 }
 
 function UserList({ q }) {
-  const { me, ask, toast } = useApp()
-  const users = useLoad(() => call(sb.rpc('admin_users')))
+  const { me, ask, toast, fail } = useApp()
+  const [areasOf, setAreasOf] = useState(null)
+  // Nama wilayah tugas diambil sekali untuk semua pengguna.
+  const users = useLoad(async () => {
+    const us = await call(sb.rpc('admin_users'))
+    const codes = [...new Set(us.flatMap(u => u.regions || []))]
+    const names = codes.length ? Object.fromEntries((await call(sb.from('regions').select('code, name').in('code', codes))).map(r => [r.code, r.name])) : {}
+    return us.map(u => ({ ...u, areas: (u.regions || []).map(code => ({ code, name: names[code] ?? code })) }))
+  })
   const s = q.trim().toLowerCase()
   const rows = (users.data || []).filter(u => !s || (u.name + ' ' + u.email).toLowerCase().includes(s))
   const patch = async (u, x) => {
@@ -45,6 +52,11 @@ function UserList({ q }) {
             <div className="col" style={{ minWidth: 0 }}>
               <span className="ell" style={{ fontSize: 13, fontWeight: 600 }}>{u.name}</span>
               <span className="sub ell">{u.email} · sejak {new Date(u.created_at).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}</span>
+              {u.role === 'verifikator' && (
+                <span className="sub ell" style={{ color: u.areas.length ? '#2462D0' : '#6E4E00' }}>
+                  {u.areas.length ? 'Wilayah: ' + u.areas.map(a => a.name).join(', ') : 'Belum ada wilayah tugas'}
+                </span>
+              )}
             </div>
           </div>
           <select className="input" style={{ height: 40, maxWidth: 160 }} value={u.role} disabled={isMe} aria-label={'Peran ' + u.name}
@@ -60,7 +72,10 @@ function UserList({ q }) {
           </select>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#3B4157' }}>{u.report_count}</span>
           <span className="pill" style={{ background: u.is_blocked ? '#FDE3E4' : '#E2F5EB', color: u.is_blocked ? '#9C161C' : '#0B6640' }}>{u.is_blocked ? 'Diblokir' : 'Aktif'}</span>
-          <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}>
+            {u.role === 'verifikator' && (
+              <button className="btn sm white" style={{ color: '#2462D0' }} onClick={() => setAreasOf(u)}><Icon n="map" size={17} />Wilayah</button>
+            )}
             {isMe ? <span className="sub">Akun kamu</span> : (
               <button className="btn sm white" style={{ color: u.is_blocked ? '#2462D0' : '#C4282E' }} onClick={() => ask(u.is_blocked
                 ? { title: `Buka blokir ${u.name}?`, icon: 'lock_open', cta: 'Buka blokir', body: 'Akun bisa mengirim laporan lagi.',
@@ -76,7 +91,45 @@ function UserList({ q }) {
       )
     })}
     {!rows.length && <Empty icon="person_search" title="Tidak ada pengguna yang cocok" />}
+    {areasOf && <AreasEditor u={areasOf} onClose={() => setAreasOf(null)} fail={fail}
+      onSaved={() => { toast(`Wilayah tugas ${areasOf.name} disimpan`); setAreasOf(null); users.reload() }} />}
   </>
+}
+
+// Wilayah tugas verifikator (kab/kota). Verifikator hanya melihat & meninjau laporan di wilayah ini.
+function AreasEditor({ u, onClose, onSaved, fail }) {
+  const [areas, setAreas] = useState(u.areas)
+  const [pick, setPick] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const add = () => {
+    if (pick?.code?.length === 5 && !areas.some(a => a.code === pick.code)) setAreas([...areas, pick])
+    setPick(null)
+  }
+  const save = async () => {
+    setBusy(true)
+    try { await call(sb.rpc('set_staff_regions', { uid: u.id, regions: areas.map(a => a.code) })); onSaved() }
+    catch (e) { fail(e) } finally { setBusy(false) }
+  }
+  return (
+    <Drawer title={`Wilayah tugas · ${u.name}`} sub="Verifikator hanya melihat dan meninjau laporan di kab/kota ini. Tanpa wilayah = tidak ada laporan." onClose={onClose}
+      footer={<><button className="btn soft big" style={{ flex: 1 }} onClick={onClose}>Batal</button>
+        <button className="btn blue big" style={{ flex: 1.6 }} disabled={busy} onClick={save}>{busy ? 'Menyimpan…' : 'Simpan wilayah'}</button></>}>
+      <div className="col" style={{ gap: 8 }}>
+        {areas.map(a => (
+          <div key={a.code} className="tr" style={{ gridTemplateColumns: '1fr auto' }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</span>
+            <button className="ibtn white" aria-label={'Hapus ' + a.name} onClick={() => setAreas(areas.filter(x => x.code !== a.code))}><Icon n="close" size={18} style={{ color: '#C4282E' }} /></button>
+          </div>
+        ))}
+        {!areas.length && <span className="sub" style={{ fontSize: 12 }}>Belum ada wilayah tugas.</span>}
+      </div>
+      <div className="col" style={{ gap: 8 }}>
+        <span className="lbl">Tambah kab/kota</span>
+        <RegionPicker kabOnly value={pick} onChange={setPick} />
+        <button className="btn soft" disabled={pick?.code?.length !== 5} onClick={add}><Icon n="add" />Tambahkan</button>
+      </div>
+    </Drawer>
+  )
 }
 
 const NUMS = [
@@ -154,6 +207,7 @@ const ACT = {
   insert: ['menambah', 'add_circle'], update: ['mengubah', 'edit'], delete: ['menghapus', 'delete'],
   set_role: ['mengubah peran', 'manage_accounts'], block: ['memblokir akun', 'block'], unblock: ['membuka blokir', 'lock_open'],
   update_settings: ['mengubah ambang & batas', 'tune'],
+  set_regions: ['mengatur wilayah tugas', 'map'],
 }
 const KIND = { shelters: 'posko/faskes', emergency_contacts: 'kontak darurat' }
 

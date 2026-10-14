@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { sb, call, useLoad, errMsg, ini, ROLES, rainSummary, hm } from './lib'
-import { Icon, Modal } from './ui'
+import { sb, call, useLoad, errMsg, ini, ROLES, rainSummary, hm, zone, byRegion } from './lib'
+import { Icon, Modal, RegionPicker } from './ui'
 import Dashboard from './pages/Dashboard'
 import Queue from './pages/Queue'
 import Status from './pages/Status'
@@ -69,7 +69,7 @@ function Login({ err, setErr }) {
         </div>
         <div className="col" style={{ gap: 16, maxWidth: 480 }}>
           <span style={{ fontSize: 40, lineHeight: 1.15, fontWeight: 700, letterSpacing: -0.6 }}>Label “Terverifikasi” lahir di sini.</span>
-          <span style={{ fontSize: 16, lineHeight: 1.6 }}>Tinjau laporan warga, tandai lokasi yang sudah surut, dan kelola data posko serta kontak darurat untuk warga Surabaya.</span>
+          <span style={{ fontSize: 16, lineHeight: 1.6 }}>Tinjau laporan warga, tandai lokasi yang sudah surut, dan kelola data posko serta kontak darurat untuk warga di seluruh Indonesia.</span>
         </div>
         <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
           <div className="glass"><Icon n="fact_check" />Verifikator: tinjau laporan</div>
@@ -83,7 +83,7 @@ function Login({ err, setErr }) {
         </div>
         {err && <div className="banner red" role="alert"><Icon n="error" />{err}</div>}
         <label className="col" style={{ gap: 6 }}><span className="lbl">Email</span>
-          <input className="input tall" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} placeholder="nama@surabaya.go.id" /></label>
+          <input className="input tall" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} placeholder="nama@instansi.go.id" /></label>
         <label className="col" style={{ gap: 6 }}><span className="lbl">Kata sandi</span>
           <input className="input tall" type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Minimal 8 karakter" /></label>
         <button className="btn blue big" disabled={busy}>{busy ? 'Memeriksa…' : 'Masuk'}</button>
@@ -111,12 +111,21 @@ function Shell({ me }) {
     return () => clearTimeout(t)
   }, [toast])
 
-  const pending = useLoad(() => sb.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending').then(r => r.count), [], 30000)
+  // Filter wilayah panel (disimpan di browser). Verifikator: hanya wilayah tugasnya (dijaga juga oleh RLS).
+  const [region, setRegionState] = useState(() => { try { return JSON.parse(localStorage.getItem('sigap.region')) } catch { return null } })
+  const setRegion = r => { setRegionState(r); try { localStorage.setItem('sigap.region', JSON.stringify(r)) } catch { /* mode privat */ } }
+  const mine = useLoad(() => (admin ? Promise.resolve(null) : call(sb.rpc('my_regions'))))
+  const rc = region?.code
+  useEffect(() => { // wilayah tersimpan sudah bukan tugasnya lagi
+    if (mine.data && rc && !mine.data.some(r => r.code === rc)) setRegion(null)
+  }, [mine.data]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pending = useLoad(() => byRegion(sb.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'), rc).then(r => r.count), [rc], 30000)
   const settings = useLoad(() => call(sb.from('app_settings').select('*').single()))
-  const forecast = useLoad(() => call(sb.from('forecast_cache').select('adm4, forecast_json, fetched_at, regions(name)')).then(rainSummary), [], 15 * 60000)
+  const forecast = useLoad(() => call(byRegion(sb.from('forecast_cache').select('adm4, forecast_json, fetched_at, regions(name)'), rc)).then(rainSummary), [rc], 15 * 60000)
 
   const app = {
-    me, admin, settings: settings.data, reloadSettings: settings.reload, forecast: forecast.data,
+    me, admin, region, regionName: region?.name ?? (admin ? 'Indonesia' : 'wilayah tugas'), settings: settings.data, reloadSettings: settings.reload, forecast: forecast.data,
     pending: pending.data, reloadPending: pending.reload,
     go: p => { location.hash = '/' + p },
     toast: (msg, tone) => setToast({ msg, tone }),
@@ -163,6 +172,13 @@ function Shell({ me }) {
               <h1>{title}</h1>
               <span className="sub" style={{ fontSize: 13 }}>{locked ? 'Akses terbatas' : sub}</span>
             </div>
+            {admin ? <RegionPicker value={region} onChange={setRegion} /> : mine.data?.length > 1 && (
+              <select className="input" style={{ height: 44, width: 200 }} aria-label="Wilayah" value={rc || ''}
+                onChange={e => setRegion(mine.data.find(r => r.code === e.target.value) || null)}>
+                <option value="">Semua wilayah tugasku</option>
+                {mine.data.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}
+              </select>
+            )}
             {fc && (
               <div className="chip" title={fc.warning || undefined}>
                 <Icon n={fc.rain ? 'thunderstorm' : 'partly_cloudy_day'} fill size={20} style={{ color: '#806EF8' }} />
@@ -171,7 +187,7 @@ function Shell({ me }) {
             )}
             <div className="chip" style={{ fontWeight: 500, color: '#3B4157' }}>
               <Icon n="schedule" size={18} style={{ color: '#6B7286' }} />
-              {new Date(now).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' })} · {hm(now)} WIB
+              {new Date(now).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })} · {hm(now)} {zone()}
             </div>
           </header>
           {locked ? (
@@ -180,7 +196,12 @@ function Shell({ me }) {
               <span style={{ fontSize: 20, fontWeight: 700 }}>Halaman ini khusus Admin</span>
               <span className="muted" style={{ fontSize: 14, lineHeight: 1.55, maxWidth: 420 }}>Akun Verifikator bisa meninjau laporan dan mengubah status lokasi. Minta Admin untuk mengubah data posko, kontak, atau pengguna.</span>
             </div>
-          ) : <Page key={page} />}
+          ) : <>
+            {!admin && mine.data?.length === 0 && (
+              <div className="banner amber"><Icon n="travel_explore" />Kamu belum punya wilayah tugas, jadi belum ada laporan yang bisa ditinjau. Minta Admin menetapkannya di halaman Pengguna.</div>
+            )}
+            <Page key={page + rc} />
+          </>}
         </main>
       </div>
       {confirm && <Modal cfg={confirm} onClose={() => setConfirm(null)} onError={app.fail} />}

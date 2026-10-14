@@ -110,7 +110,7 @@ select.input { padding: 0 10px; font-size: 13px }
 .st-grid { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 170px }
 .pl-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, .8fr) 120px }
 .ct-grid { grid-template-columns: 44px minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) 210px }
-.us-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) 70px minmax(0, .9fr) 150px }
+.us-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) 70px minmax(0, .8fr) 230px }
 .num { width: 32px; height: 32px; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--body) }
 .logrow { gap: 14px; padding: 12px 14px; border-radius: 16px; background: var(--row) }
 

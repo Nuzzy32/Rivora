@@ -27,21 +27,18 @@ export const REASONS = [
   { key: 'lainnya', label: 'Lainnya', icon: 'edit_note' },
 ]
 
-export const DISTRICTS = ['Asemrowo', 'Benowo', 'Bubutan', 'Bulak', 'Dukuh Pakis', 'Gayungan', 'Genteng', 'Gubeng',
-  'Gunung Anyar', 'Jambangan', 'Karang Pilang', 'Kenjeran', 'Krembangan', 'Lakarsantri', 'Mulyorejo', 'Pabean Cantian',
-  'Pakal', 'Rungkut', 'Sambikerep', 'Sawahan', 'Semampir', 'Simokerto', 'Sukolilo', 'Sukomanunggal', 'Tambaksari',
-  'Tandes', 'Tegalsari', 'Tenggilis Mejoyo', 'Wiyung', 'Wonocolo', 'Wonokromo']
 
 // Kunci kategori dibaca aplikasi mobile untuk memilih ikon (emergency.dart).
-export const CONTACT_CATEGORIES = { bpbd: 'Bencana (BPBD)', damkar: 'Damkar & penyelamatan', ambulans: 'Medis / ambulans', polisi: 'Keamanan / polisi', umum: 'Darurat umum' }
+export const CONTACT_CATEGORIES = { bpbd: 'Bencana (BPBD)', damkar: 'Damkar & penyelamatan', ambulans: 'Medis / ambulans', polisi: 'Keamanan / polisi', bnpb: 'BNPB (nasional)', sar: 'SAR / Basarnas', umum: 'Darurat umum' }
 
 export const ROLES = { warga: 'Warga', verifikator: 'Verifikator', admin: 'Admin' }
 
-export const SBY = [-7.2756, 112.7426] // Balai Kota Surabaya
+export const INDONESIA = [-2.5, 118, 5] // pusat & zoom peta bila belum ada wilayah/titik
 
-const TZ = 'Asia/Jakarta'
-export const hm = t => new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: TZ })
-export const dayMon = t => new Date(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: TZ })
+// Jam memakai zona waktu perangkat staf (verifikator di Makassar melihat WITA).
+export const hm = t => new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+export const dayMon = t => new Date(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+export const zone = () => ({ 7: 'WIB', 8: 'WITA', 9: 'WIT' })[-new Date().getTimezoneOffset() / 60] || 'waktu setempat'
 export const minsSince = t => Math.max(0, Math.round((Date.now() - new Date(t)) / 60000))
 export function ago(t) {
   const m = minsSince(t)
@@ -54,12 +51,18 @@ export function ago(t) {
 export const ini = n => (n || '').trim().split(/\s+/).slice(0, 2).map(x => x[0] || '').join('').toUpperCase()
 export const reportCode = id => 'L-' + id
 
-// Jam "HH:MM" hari ini di WIB → ISO.
+// Jam "HH:MM" hari ini (zona perangkat) → ISO.
 export function todayAt(hhmm) {
-  const day = new Date().toLocaleDateString('sv-SE', { timeZone: TZ })
-  return `${day}T${hhmm}:00+07:00`
+  const [h, m] = hhmm.split(':').map(Number)
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return d.toISOString()
 }
-export const nowHHMM = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: TZ })
+export const nowHHMM = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+
+// Filter wilayah panel: kode prov (2) / kab-kota (5); kode desa diawali kode itu.
+export const inRegion = (adm4, region) => !region || !!adm4?.startsWith(region + '.')
+export const byRegion = (q, region) => (region ? q.like('adm4', region + '.%') : q)
 
 export async function call(q) {
   const { data, error } = await q

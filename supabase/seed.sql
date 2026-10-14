@@ -7,9 +7,9 @@ insert into public.shelters (type, name, address, location, status, note) values
   ('faskes', 'RS Islam Jemursari', 'Jl. Jemursari No. 51–57, Wonocolo', 'SRID=4326;POINT(112.7452 -7.3237)', 'open', 'IGD 24 jam'),
   ('faskes', 'RSUD Dr. Soetomo', 'Jl. Mayjen Prof. Dr. Moestopo No. 6–8', 'SRID=4326;POINT(112.7581 -7.2681)', 'open', 'IGD 24 jam');
 
-insert into public.emergency_contacts (name, phone, category, sort_order) values
-  ('BPBD Kota Surabaya', '(031) 5312 144', 'bpbd', 1),
-  ('Damkar & Penyelamatan', '113', 'damkar', 2),
-  ('Ambulans (SPGDT)', '119', 'ambulans', 3),
-  ('Polisi', '110', 'polisi', 4);
+insert into public.emergency_contacts (name, phone, category, sort_order, region) values
+  ('BPBD Kota Surabaya', '(031) 5312 144', 'bpbd', 1, '35.78'),
+  ('Damkar & Penyelamatan', '113', 'damkar', 2, null),
+  ('Ambulans (SPGDT)', '119', 'ambulans', 3, null),
+  ('Polisi', '110', 'polisi', 4, null);
 

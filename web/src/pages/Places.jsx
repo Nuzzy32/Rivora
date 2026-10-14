@@ -1,18 +1,22 @@
 import { useState } from 'react'
 import { useApp } from '../App'
-import { sb, call, useLoad, CONTACT_CATEGORIES } from '../lib'
-import { Icon, Seg, Drawer, Field, MapView, LoadError, Spinner, Empty } from '../ui'
+import { sb, call, useLoad, CONTACT_CATEGORIES, inRegion } from '../lib'
+import { Icon, Seg, Drawer, Field, MapView, LoadError, Spinner, Empty, RegionPicker } from '../ui'
 
 const SS = { open: ['Buka', '#E2F5EB', '#0B6640'], full: ['Penuh', '#FDE3E4', '#9C161C'], closed: ['Tutup', '#EEF0F4', '#3B4157'] }
 const TYPE = { posko: ['Posko', 'night_shelter', '#5B47E0', '#EEEBFF'], faskes: ['Faskes', 'local_hospital', '#2462D0', '#E6EFFF'] }
 const PHONE = /^[0-9+()\s-]{3,20}$/
 
 export default function Places() {
-  const { ask, toast, fail } = useApp()
+  const { ask, toast, fail, region } = useApp()
+  const rc = region?.code
   const [tab, setTab] = useState('posko')
   const [drawer, setDrawer] = useState(null)
   const places = useLoad(() => call(sb.rpc('shelters_list')))
-  const contacts = useLoad(() => call(sb.from('emergency_contacts').select('*').order('sort_order').order('id')))
+  const contacts = useLoad(() => call(sb.from('emergency_contacts').select('*, regions(name)').order('sort_order').order('id')))
+  // Kontak nasional selalu tampil; kontak daerah hanya yang ada di wilayah terpilih.
+  const shownContacts = (contacts.data || []).filter(c => !c.region || !rc || c.region.startsWith(rc))
+  const shownPlaces = (places.data || []).filter(x => x.type === tab && inRegion(x.adm4, rc))
   const isPlaces = tab !== 'kontak'
   const cur = isPlaces ? places : contacts
 
@@ -21,13 +25,14 @@ export default function Places() {
     body: 'Data ini langsung hilang dari aplikasi warga. Tindakan tercatat di log aktivitas.',
     onOk: async () => { await call(sb.from(table).delete().eq('id', x.id)); toast(x.name + ' dihapus'); cur.reload() },
   })
-  // Tukar urutan dua kontak: urutan = indeks baru, supaya sort_order yang sama pun tetap rapi.
+  // Tukar dua kontak yang tampil, lalu nomori ulang seluruh daftar (hanya baris yang berubah disimpan).
   const move = async (i, j) => {
-    const c = contacts.data
-    if (j < 0 || j >= c.length) return
+    if (j < 0 || j >= shownContacts.length) return
+    const all = [...contacts.data]
+    const a = all.indexOf(shownContacts[i]), b = all.indexOf(shownContacts[j])
+    ;[all[a], all[b]] = [all[b], all[a]]
     try {
-      await Promise.all([call(sb.from('emergency_contacts').update({ sort_order: j + 1 }).eq('id', c[i].id)),
-        call(sb.from('emergency_contacts').update({ sort_order: i + 1 }).eq('id', c[j].id))])
+      await Promise.all(all.map((c, k) => c.sort_order !== k + 1 && call(sb.from('emergency_contacts').update({ sort_order: k + 1 }).eq('id', c.id))))
     } catch (e) { fail(e) }
     contacts.reload()
   }
@@ -37,14 +42,14 @@ export default function Places() {
       <div className="row" style={{ gap: 10 }}>
         <Seg value={tab} onChange={setTab} items={[{ key: 'posko', label: 'Posko', icon: 'night_shelter' }, { key: 'faskes', label: 'Faskes', icon: 'local_hospital' }, { key: 'kontak', label: 'Kontak darurat', icon: 'call' }]} />
         <div style={{ flex: 1 }} />
-        <button className="btn blue" onClick={() => setDrawer(isPlaces ? { type: tab, name: '', address: '', phone: '', status: 'open', note: '', at: null } : { name: '', phone: '', category: 'bpbd' })}>
+        <button className="btn blue" onClick={() => setDrawer(isPlaces ? { type: tab, name: '', address: '', phone: '', status: 'open', note: '', at: null } : { name: '', phone: '', category: 'bpbd', area: rc?.length === 5 ? region : null })}>
           <Icon n="add" />{tab === 'posko' ? 'Tambah posko' : tab === 'faskes' ? 'Tambah faskes' : 'Tambah kontak'}
         </button>
       </div>
       {cur.error && <LoadError error={cur.error} retry={cur.reload} />}
       {!cur.data ? <Spinner /> : isPlaces ? <>
         <div className="thead pl-grid"><span>NAMA</span><span>ALAMAT</span><span>KONTAK</span><span>STATUS</span><span style={{ textAlign: 'right' }}>AKSI</span></div>
-        {places.data.filter(x => x.type === tab).map(x => {
+        {shownPlaces.map(x => {
           const t = TYPE[x.type], s = SS[x.status]
           return (
             <div key={x.id} className="tr pl-grid">
@@ -62,24 +67,24 @@ export default function Places() {
             </div>
           )
         })}
-        {!places.data.some(x => x.type === tab) && <Empty icon="add_location_alt" title={`Belum ada ${TYPE[tab][0].toLowerCase()}`} />}
+        {!shownPlaces.length && <Empty icon="add_location_alt" title={`Belum ada ${TYPE[tab][0].toLowerCase()}`} />}
       </> : <>
         <span className="sub" style={{ fontSize: 12, padding: '0 4px' }}>Urutan di bawah = urutan di halaman Darurat aplikasi. Satu ketukan membuka dialer.</span>
-        {contacts.data.map((c, i) => (
+        {shownContacts.map((c, i) => (
           <div key={c.id} className="tr ct-grid">
             <span className="num">{i + 1}</span>
             <span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span>
             <span style={{ fontSize: 13, color: '#3B4157', fontWeight: 500 }}>{c.phone}</span>
-            <span className="sub" style={{ fontSize: 12 }}>{CONTACT_CATEGORIES[c.category] || c.category}</span>
+            <span className="sub" style={{ fontSize: 12 }}>{CONTACT_CATEGORIES[c.category] || c.category} · {c.regions?.name ?? 'Nasional'}</span>
             <div className="row" style={{ gap: 6, justifyContent: 'flex-end' }}>
               <button className="ibtn white" aria-label="Naikkan" disabled={i === 0} onClick={() => move(i, i - 1)}><Icon n="arrow_upward" size={18} /></button>
-              <button className="ibtn white" aria-label="Turunkan" disabled={i === contacts.data.length - 1} onClick={() => move(i, i + 1)}><Icon n="arrow_downward" size={18} /></button>
-              <button className="ibtn white" aria-label={'Ubah ' + c.name} onClick={() => setDrawer({ ...c })}><Icon n="edit" size={18} style={{ color: '#2462D0' }} /></button>
+              <button className="ibtn white" aria-label="Turunkan" disabled={i === shownContacts.length - 1} onClick={() => move(i, i + 1)}><Icon n="arrow_downward" size={18} /></button>
+              <button className="ibtn white" aria-label={'Ubah ' + c.name} onClick={() => setDrawer({ ...c, area: c.region ? { code: c.region, name: c.regions?.name } : null })}><Icon n="edit" size={18} style={{ color: '#2462D0' }} /></button>
               <button className="ibtn white" aria-label={'Hapus ' + c.name} onClick={() => del('emergency_contacts', c)}><Icon n="delete" size={18} style={{ color: '#C4282E' }} /></button>
             </div>
           </div>
         ))}
-        {!contacts.data.length && <Empty icon="call" title="Belum ada kontak darurat" />}
+        {!shownContacts.length && <Empty icon="call" title="Belum ada kontak darurat" />}
       </>}
       {drawer && <Editor d={drawer} contacts={contacts.data || []} onClose={() => setDrawer(null)}
         onSaved={name => { setDrawer(null); toast(name + ' disimpan'); cur.reload() }} fail={fail} />}
@@ -88,6 +93,7 @@ export default function Places() {
 }
 
 function Editor({ d: init, contacts, onClose, onSaved, fail }) {
+  const { region } = useApp()
   const [d, setD] = useState(init)
   const [err, setErr] = useState({})
   const [busy, setBusy] = useState(false)
@@ -106,7 +112,7 @@ function Editor({ d: init, contacts, onClose, onSaved, fail }) {
     if (Object.keys(e).length) return
     const row = isPlace
       ? { type: d.type, name: d.name.trim(), address: d.address.trim(), phone: d.phone.trim() || null, status: d.status, note: d.note.trim() || null, location: `SRID=4326;POINT(${d.at.lng} ${d.at.lat})` }
-      : { name: d.name.trim(), phone: d.phone.trim(), category: d.category, ...(init.id ? {} : { sort_order: Math.max(0, ...contacts.map(c => c.sort_order)) + 1 }) }
+      : { name: d.name.trim(), phone: d.phone.trim(), category: d.category, region: d.area?.code?.length === 5 ? d.area.code : null, ...(init.id ? {} : { sort_order: Math.max(0, ...contacts.map(c => c.sort_order)) + 1 }) }
     const t = sb.from(isPlace ? 'shelters' : 'emergency_contacts')
     setBusy(true)
     try {
@@ -130,6 +136,13 @@ function Editor({ d: init, contacts, onClose, onSaved, fail }) {
           </select>
         </Field>
       )}
+      {!isPlace && (
+        <div className="col" style={{ gap: 8 }}>
+          <span className="lbl">Berlaku di <span className="sub" style={{ fontWeight: 400 }}>(kosongkan = nasional, mis. 112, BNPB)</span></span>
+          <RegionPicker kabOnly value={d.area} onChange={area => set({ area })} />
+          <span className="sub">{d.area?.code?.length === 5 ? `Hanya untuk warga di ${d.area.name}` : 'Nasional: tampil untuk semua warga'}</span>
+        </div>
+      )}
       {isPlace && <>
         <Field label="Alamat" error={err.address}><input className={'input' + (err.address ? ' bad' : '')} value={d.address} onChange={e => set({ address: e.target.value })} /></Field>
         <div className="col" style={{ gap: 8 }}>
@@ -143,7 +156,7 @@ function Editor({ d: init, contacts, onClose, onSaved, fail }) {
         <Field label="Catatan (opsional)"><input className="input" maxLength={120} value={d.note} onChange={e => set({ note: e.target.value })} placeholder="Contoh: Kapasitas 60 orang" /></Field>
         <div className="col" style={{ gap: 8 }}>
           <span className="lbl">Titik di peta <span className="sub" style={{ fontWeight: 400 }}>(klik untuk memindah)</span></span>
-          <MapView height={220} pick={d.at} onPick={at => set({ at })} center={init.at ? [init.at.lat, init.at.lng, 16] : undefined} />
+          <MapView height={220} pick={d.at} onPick={at => set({ at })} center={init.at ? [init.at.lat, init.at.lng, 16] : region?.lat ? [region.lat, region.lng, 12] : undefined} />
           {d.at ? <span className="mono sub">lat {d.at.lat.toFixed(5)}, lng {d.at.lng.toFixed(5)}</span> : err.at && <span className="err">{err.at}</span>}
         </div>
       </>}

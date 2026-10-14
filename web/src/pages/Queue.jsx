@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { useApp } from '../App'
-import { sb, call, useLoad, ago, depthOf, depthIdx, DEPTHS, REASONS, VER, reportCode, minsSince } from '../lib'
+import { sb, call, useLoad, ago, depthOf, depthIdx, DEPTHS, REASONS, VER, reportCode, minsSince, inRegion, byRegion } from '../lib'
 import { Icon, Seg, MapView, DepthFig, Empty, LoadError, Spinner } from '../ui'
 
 const TABS = [['pending', 'Menunggu'], ['approved', 'Disetujui'], ['rejected', 'Ditolak']]
 const ST = { pending: ['Menunggu', 'schedule', '#EEF0F4', '#3B4157'], approved: ['Disetujui', 'check_circle', '#E6EFFF', '#2462D0'], rejected: ['Ditolak', 'cancel', '#FDE3E4', '#9C161C'] }
 
 export default function Queue() {
-  const { settings, toast, fail, reloadPending } = useApp()
+  const { settings, toast, fail, reloadPending, region } = useApp()
   const [tab, setTab] = useState('pending')
   const [selId, setSelId] = useState(null)
-  const list = useLoad(() => call(sb.rpc('review_queue', { st: tab })), [tab], tab === 'pending' ? 30000 : 0)
+  const list = useLoad(() => call(sb.rpc('review_queue', { st: tab })).then(r => r.filter(x => inRegion(x.adm4, region?.code))), [tab], tab === 'pending' ? 30000 : 0)
   const counts = useLoad(() => Promise.all(TABS.map(([s]) =>
-    sb.from('reports').select('id', { count: 'exact', head: true }).eq('status', s).then(r => r.count ?? 0))), [tab], 30000)
+    byRegion(sb.from('reports').select('id', { count: 'exact', head: true }).eq('status', s), region?.code).then(r => r.count ?? 0))), [tab], 30000)
 
   const rows = list.data || []
   const sel = rows.find(r => r.id === selId) || rows[0]

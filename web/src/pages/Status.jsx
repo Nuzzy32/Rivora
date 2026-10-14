@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../App'
-import { sb, call, useLoad, ago, hm, depthOf, DEPTHS, VER, DISTRICTS, todayAt, nowHHMM } from '../lib'
+import { sb, call, useLoad, ago, hm, depthOf, DEPTHS, VER, todayAt, nowHHMM } from '../lib'
 import { Icon, Drawer, Field, MapView, LoadError, Spinner } from '../ui'
 import { pointPin } from './Dashboard'
 
@@ -8,10 +8,10 @@ const FILTERS = [['all', 'Semua'], ['active', 'Aktif'], ['needs_confirmation', '
 const S = { active: ['Aktif', '#E6EFFF', '#2462D0'], needs_confirmation: ['Perlu konfirmasi', '#FFF3D3', '#6E4E00'], receded: ['Sudah surut', '#E2F5EB', '#0B6640'] }
 
 export default function Status() {
-  const { ask, toast, fail } = useApp()
+  const { ask, toast, fail, region } = useApp()
   const [filter, setFilter] = useState('all')
   const [official, setOfficial] = useState(false)
-  const pts = useLoad(() => call(sb.rpc('flood_points_all')), [], 30000)
+  const pts = useLoad(() => call(sb.rpc('flood_points_all', { region: region?.code ?? null })), [], 30000)
   const all = pts.data || []
   const rows = all.filter(p => filter === 'all' || p.status === filter)
 
@@ -63,20 +63,35 @@ export default function Status() {
         )
       })}
       {pts.data && !rows.length && <div className="sub" style={{ padding: 32, textAlign: 'center', fontSize: 13 }}>Tidak ada lokasi dengan status ini.</div>}
-      {official && <Official points={all} onClose={() => setOfficial(false)} onDone={(msg) => { setOfficial(false); setFilter('all'); toast(msg); pts.reload() }} fail={fail} />}
+      {official && <Official points={all} region={region} onClose={() => setOfficial(false)} onDone={(msg) => { setOfficial(false); setFilter('all'); toast(msg); pts.reload() }} fail={fail} />}
     </div>
   )
 }
 
-const CHANNELS = ['BPBD Kota Surabaya', 'Command Center 112', 'Pemkot Surabaya']
+// Kanal sumber mengikuti kab/kota tempat pin (label desa: "Desa, Kecamatan, Kab/Kota, Provinsi").
+const channelsFor = v => {
+  const kab = v?.label.split(', ')[2]
+  return kab ? [`BPBD ${kab}`, 'Command Center 112', `Pemerintah ${kab}`] : ['BPBD setempat', 'Command Center 112', 'Pemerintah daerah']
+}
 
-function Official({ points, onClose, onDone, fail }) {
-  const [f, setF] = useState({ name: '', district: 'Gayungan', depth: null, channel: CHANNELS[0], note: '', at: null })
+function Official({ points, region, onClose, onDone, fail }) {
+  const [f, setF] = useState({ name: '', depth: null, channel: channelsFor(null)[0], note: '', at: null })
+  const [village, setVillage] = useState(undefined) // undefined = belum dicek, null = di luar Indonesia
   const [err, setErr] = useState({})
   const [busy, setBusy] = useState(false)
   const set = x => { setF(p => ({ ...p, ...x })); clear(x) }
   const clear = x => setErr(e => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in x))))
   const markers = useMemo(() => points.filter(p => p.status !== 'receded').map(p => pointPin(p)), [points])
+  const channels = channelsFor(village)
+  const pickAt = async at => {
+    set({ at })
+    setVillage(undefined)
+    try {
+      const v = (await call(sb.rpc('village_at', { lat: at.lat, lng: at.lng })))[0] ?? null
+      setVillage(v)
+      setF(p => ({ ...p, channel: channelsFor(v).includes(p.channel) ? p.channel : channelsFor(v)[0] }))
+    } catch { setVillage(null) }
+  }
 
   const save = async () => {
     const e = {}
@@ -87,7 +102,7 @@ function Official({ points, onClose, onDone, fail }) {
     if (Object.keys(e).length) return
     setBusy(true)
     try {
-      const id = await call(sb.rpc('publish_official', { name: f.name.trim(), district: f.district, lat: f.at.lat, lng: f.at.lng, depth: f.depth, source: f.channel, note: f.note.trim() || null }))
+      const id = await call(sb.rpc('publish_official', { name: f.name.trim(), district: null, lat: f.at.lat, lng: f.at.lng, depth: f.depth, source: f.channel, note: f.note.trim() || null }))
       const near = points.find(p => p.id === id)
       onDone(near ? `${near.name} sudah ada di dekat titik ini, dinaikkan jadi Resmi` : `Status Resmi diterbitkan untuk ${f.name.trim()}`)
     } catch (x) { fail(x) } finally { setBusy(false) }
@@ -100,13 +115,16 @@ function Official({ points, onClose, onDone, fail }) {
       <Field label="Nama jalan / lokasi" error={err.name}>
         <input className={'input' + (err.name ? ' bad' : '')} maxLength={120} value={f.name} onChange={e => set({ name: e.target.value })} placeholder="Contoh: Jl. Jagir Wonokromo" />
       </Field>
-      <Field label="Kecamatan">
-        <select className="input" value={f.district} onChange={e => set({ district: e.target.value })}>{DISTRICTS.map(d => <option key={d}>{d}</option>)}</select>
-      </Field>
       <div className="col" style={{ gap: 8 }}>
         <span className="lbl">Titik di peta <span className="sub" style={{ fontWeight: 400 }}>(klik untuk menaruh; titik aktif dalam radius gabung akan dinaikkan jadi Resmi)</span></span>
-        <MapView height={220} markers={markers} pick={f.at} onPick={at => set({ at })} />
-        {f.at ? <span className="mono sub">lat {f.at.lat.toFixed(5)}, lng {f.at.lng.toFixed(5)}</span> : err.at && <span className="err">{err.at}</span>}
+        <MapView height={220} markers={markers} pick={f.at} onPick={pickAt} fit={!region?.lat}
+          center={region?.lat ? [region.lat, region.lng, region.code.length === 2 ? 8 : 12] : undefined} />
+        {f.at ? (
+          <span className="sub" style={{ fontSize: 12 }}>
+            {village === undefined ? 'Mendeteksi desa…' : village ? village.label : 'Di luar wilayah Indonesia'}
+            <span className="mono"> · {f.at.lat.toFixed(5)}, {f.at.lng.toFixed(5)}</span>
+          </span>
+        ) : err.at && <span className="err">{err.at}</span>}
       </div>
       <div className="col" style={{ gap: 8 }}>
         <span className="lbl">Ketinggian air</span>
@@ -122,11 +140,11 @@ function Official({ points, onClose, onDone, fail }) {
       <div className="col" style={{ gap: 8 }}>
         <span className="lbl">Kanal sumber</span>
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-          {CHANNELS.map(c => <button key={c} className={'filter v' + (f.channel === c ? ' on' : '')} aria-pressed={f.channel === c} onClick={() => set({ channel: c })}>{c}</button>)}
+          {channels.map(c => <button key={c} className={'filter v' + (f.channel === c ? ' on' : '')} aria-pressed={f.channel === c} onClick={() => set({ channel: c })}>{c}</button>)}
         </div>
       </div>
       <Field label="Tautan atau catatan sumber">
-        <textarea className="input area" maxLength={300} value={f.note} onChange={e => set({ note: e.target.value })} placeholder="Contoh: unggahan Instagram @bpbdsurabaya pukul 15.30" />
+        <textarea className="input area" maxLength={300} value={f.note} onChange={e => set({ note: e.target.value })} placeholder="Contoh: unggahan Instagram BPBD pukul 15.30" />
       </Field>
     </Drawer>
   )

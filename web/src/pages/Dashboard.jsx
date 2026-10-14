@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useApp } from '../App'
-import { sb, call, useLoad, ago, hm, depthOf, depthIdx, DEPTHS, minsSince } from '../lib'
+import { sb, call, useLoad, ago, hm, depthOf, depthIdx, DEPTHS, minsSince, byRegion } from '../lib'
 import { Icon, MapView, LoadError, Spinner, Empty } from '../ui'
 
 export const pointPin = (p, onClick) => {
@@ -10,9 +10,9 @@ export const pointPin = (p, onClick) => {
 }
 
 export default function Dashboard() {
-  const { go, settings, forecast: fc } = useApp()
-  const pts = useLoad(() => call(sb.rpc('flood_points_all')), [], 30000)
-  const pend = useLoad(() => call(sb.from('reports').select('created_at').eq('status', 'pending').order('created_at')), [], 30000)
+  const { go, settings, forecast: fc, region, regionName } = useApp()
+  const pts = useLoad(() => call(sb.rpc('flood_points_all', { region: region?.code ?? null })), [], 30000)
+  const pend = useLoad(() => call(byRegion(sb.from('reports').select('created_at').eq('status', 'pending'), region?.code).order('created_at')), [], 30000)
 
   const active = (pts.data || []).filter(p => p.status !== 'receded' && p.depth !== 'none')
   const bar = DEPTHS.slice(1).map(d => ({ ...d, n: active.filter(p => p.depth === d.key).length })).filter(b => b.n)
@@ -39,13 +39,13 @@ export default function Dashboard() {
           <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>{bar.map(b => <span key={b.key} className="row" style={{ gap: 6, fontSize: 12, color: '#3B4157' }}><span className="dot" style={{ background: b.color }} />{b.short} {b.n}</span>)}</div>
         </div>
         <div className="card col stat fc">
-          <div className="row between"><span style={{ fontSize: 13, fontWeight: 600 }}>Prakiraan BMKG · Surabaya</span><Icon n={fc?.rain ? 'thunderstorm' : 'partly_cloudy_day'} fill size={24} /></div>
+          <div className="row between"><span style={{ fontSize: 13, fontWeight: 600 }}>Prakiraan BMKG · {regionName}</span><Icon n={fc?.rain ? 'thunderstorm' : 'partly_cloudy_day'} fill size={24} /></div>
           {!fc ? <span style={{ fontSize: 13 }}>Prakiraan belum tersedia.</span> : fc.rain ? <>
             <span style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.2 }}>{fc.desc}</span>
             <span style={{ fontSize: 13, lineHeight: 1.55 }}>{hm(fc.from)}–{hm(fc.to)} WIB di {fc.districts.join(', ')}.{fc.warning ? ' ' + fc.warning : ' Siapkan verifikator jaga.'}</span>
           </> : <>
             <span style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.2 }}>Tidak ada hujan</span>
-            <span style={{ fontSize: 13, lineHeight: 1.55 }}>dalam 12 jam ke depan di kecamatan yang dipantau.</span>
+            <span style={{ fontSize: 13, lineHeight: 1.55 }}>dalam 12 jam ke depan di lokasi yang dibuka warga.</span>
           </>}
           {fc && <span style={{ fontSize: 11, fontWeight: 500 }}>Sumber: BMKG · diambil {hm(fc.fetched)} WIB</span>}
         </div>
@@ -53,7 +53,7 @@ export default function Dashboard() {
       <div className="grid-map">
         <div className="card col" style={{ gap: 14 }}>
           <div className="row between"><span className="h2">Peta ringkas</span><span className="sub">Klik penanda untuk kelola status</span></div>
-          <MapView markers={markers} fit height={380} />
+          <MapView markers={markers} fit height={380} center={region?.lat ? [region.lat, region.lng, region.code.length === 2 ? 8 : 12] : undefined} />
         </div>
         <div className="card col" style={{ gap: 6 }}>
           <div className="row between" style={{ paddingBottom: 8 }}><span className="h2">Lokasi aktif</span>

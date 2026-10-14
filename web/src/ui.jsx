@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { SBY, depthIdx } from './lib'
+import { INDONESIA, depthIdx, sb, call, useLoad } from './lib'
 
 export const Icon = ({ n, fill, size = 20, style }) => (
   <span className="ms" aria-hidden="true" style={{ fontSize: size, fontVariationSettings: fill ? "'FILL' 1" : undefined, ...style }}>{n}</span>
@@ -127,7 +127,8 @@ export function MapView({ markers, pick, onPick, circle, center, fit, height = 3
   const el = useRef(), map = useRef(), layer = useRef(), fitted = useRef(false)
   const pickRef = useRef(onPick); pickRef.current = onPick
   useEffect(() => {
-    const m = map.current = L.map(el.current, { scrollWheelZoom: false }).setView(center ? center.slice(0, 2) : SBY, center?.[2] || 12)
+    const c = center || INDONESIA
+    const m = map.current = L.map(el.current, { scrollWheelZoom: false }).setView(c.slice(0, 2), c[2] || 12)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(m)
     layer.current = L.layerGroup().addTo(m)
     m.on('click', e => pickRef.current?.({ lat: +e.latlng.lat.toFixed(6), lng: +e.latlng.lng.toFixed(6) }))
@@ -154,4 +155,31 @@ export function MapView({ markers, pick, onPick, circle, center, fit, height = 3
   const key = center?.join()
   useEffect(() => { if (center) map.current.setView(center.slice(0, 2), center[2] || map.current.getZoom()) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={el} className={'map' + (onPick ? ' picking' : '')} style={{ height }} />
+}
+
+// Pilih provinsi lalu kab/kota (kode Kemendagri). value/onChange: {code, name, lat, lng} atau null.
+// kabOnly: untuk wilayah tugas & kontak daerah (wajib sampai kab/kota).
+export function RegionPicker({ value, onChange, kabOnly, allLabel = 'Semua Indonesia' }) {
+  const prov = value?.code?.slice(0, 2) || ''
+  const provs = useLoad(() => call(sb.rpc('regions_in')))
+  const kabs = useLoad(() => (prov ? call(sb.rpc('regions_in', { parent_code: prov })) : Promise.resolve([])), [prov])
+  const pick = (code, list) => {
+    const r = list?.find(x => x.code === code)
+    onChange(r ? { code: r.code, name: r.name, lat: r.lat, lng: r.lng } : null)
+  }
+  return (
+    <div className="row" style={{ gap: 8 }}>
+      <select className="input" style={{ height: 44 }} value={prov} aria-label="Provinsi" onChange={e => pick(e.target.value, provs.data)}>
+        <option value="">{kabOnly ? 'Pilih provinsi' : allLabel}</option>
+        {provs.data?.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}
+      </select>
+      {prov && (
+        <select className="input" style={{ height: 44 }} aria-label="Kabupaten/kota" value={value?.code?.length === 5 ? value.code : ''}
+          onChange={e => (e.target.value ? pick(e.target.value, kabs.data) : pick(prov, provs.data))}>
+          <option value="">{kabOnly ? 'Pilih kab/kota' : 'Seluruh provinsi'}</option>
+          {kabs.data?.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}
+        </select>
+      )}
+    </div>
+  )
 }
