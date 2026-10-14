@@ -1,9 +1,11 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/account.dart';
@@ -18,7 +20,22 @@ import 'state.dart';
 import 'motion.dart';
 import 'theme.dart';
 
+// Opsional: kosong = Sentry mati total, perilaku aplikasi tidak berubah.
+const _sentryDsn = String.fromEnvironment('SENTRY_DSN');
+
 Future<void> main() async {
+  if (_sentryDsn.isEmpty) return _start();
+  // Hanya laporan error: tanpa PII, tracing, tangkapan layar, atau view hierarchy.
+  await SentryFlutter.init((o) {
+    o.dsn = _sentryDsn;
+    o.sendDefaultPii = false;
+    o.tracesSampleRate = 0;
+    o.environment = kReleaseMode ? 'production' : 'debug';
+    o.attachScreenshot = false; // attachViewHierarchy juga default false
+  }, appRunner: _start);
+}
+
+Future<void> _start() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Diisi lewat: flutter run --dart-define-from-file=env.json (lihat env.example.json).
   const url = String.fromEnvironment('SUPABASE_URL'),

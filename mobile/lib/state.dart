@@ -188,7 +188,7 @@ class AppState extends ChangeNotifier {
       user = await Api.currentUser();
       if (user != null) await _loadUserData();
       final r = await Future.wait([
-        Api.shelters(),
+        Api.shelters(center),
         Api.contacts(),
         Api.riskAreas(),
         Api.settings(),
@@ -211,6 +211,9 @@ class AppState extends ChangeNotifier {
   /// GET titik genangan dalam 10 km. Gagal = tetap tampilkan data terakhir + tanda offline (US-01).
   Future<void> loadPoints(LatLng at) async {
     _pointsAt = at;
+    Api.shelters(at)
+        .then((r) => set(() => shelters = r))
+        .catchError((_) {}); // offline: pakai daftar terakhir
     try {
       points = await Api.floodPoints(at);
       pointsFetchedAt = Api.pointsCachedAt ?? DateTime.now();
@@ -568,6 +571,16 @@ class AppState extends ChangeNotifier {
       Uri(scheme: 'tel', path: number.replaceAll(RegExp(r'[^0-9+]'), '')),
     );
     if (!ok) showToast('Tidak bisa membuka dialer');
+  }
+
+  static const privacyUrl =
+      'https://sigap-banjir-panel.vercel.app/privasi.html';
+  Future<void> openPrivacy() async {
+    final ok = await launchUrl(
+      Uri.parse(privacyUrl),
+      mode: LaunchMode.inAppBrowserView,
+    );
+    if (!ok) showToast('Tidak bisa membuka halaman');
   }
 
   Future<void> directions(LatLng to) async {

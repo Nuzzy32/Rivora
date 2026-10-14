@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kebijakan Privasi · SIGAP Banjir</title>
+<meta name="description" content="Data apa yang dikumpulkan aplikasi SIGAP Banjir, untuk apa, dan bagaimana kamu mengendalikannya.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #F4F7FC; --card: #fff; --ink: #1B1F2B; --body: #3B4157; --muted: #6B7385; --blue: #2462D0; --line: #E3E8F0; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0F1420; --card: #171D2B; --ink: #F1F4FA; --body: #C9D0DE; --muted: #8C95A8; --blue: #8DB9FF; --line: #263045; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--body); font: 15px/1.7 Poppins, system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  article { background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 28px clamp(18px, 4vw, 40px); }
+  h1 { color: var(--ink); font-size: 28px; line-height: 1.25; margin: 0 0 4px; }
+  h2 { color: var(--ink); font-size: 18px; margin: 32px 0 8px; }
+  .meta { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  ul { padding-left: 20px; } li { margin: 4px 0; }
+  a { color: var(--blue); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink); font-weight: 600; }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+<article>
+<h1>Kebijakan Privasi SIGAP Banjir</h1>
+<p class="meta">Berlaku sejak 14 Oktober 2026 · Pengelola: Adrian Faishal Hilmy (proyek pribadi)</p>
+
+<p>SIGAP Banjir membantu warga di seluruh Indonesia melihat dan melaporkan genangan per lokasi. Halaman ini menjelaskan data apa yang kami kumpulkan, untuk apa, dengan siapa dibagikan, dan bagaimana kamu mengendalikannya, sesuai Undang-Undang No. 27 Tahun 2022 tentang Pelindungan Data Pribadi.</p>
+
+<h2>1. Data yang kami kumpulkan</h2>
+<div class="wrap"><table>
+<tr><th>Data</th><th>Kapan</th><th>Untuk apa</th></tr>
+<tr><td>Email, nama, kata sandi (tersimpan terenkripsi)</td><td>Saat mendaftar</td><td>Masuk ke akun, mengirim laporan, menyimpan lokasi pantauan</td></tr>
+<tr><td>Lokasi GPS</td><td>Saat aplikasi dibuka dan izin lokasi diberikan</td><td>Memusatkan peta dan memilih prakiraan cuaca desa terdekat. Lokasi tidak dilacak di latar belakang dan tidak disimpan di server, kecuali poin berikut</td></tr>
+<tr><td>Titik laporan, foto (1–3), kategori ketinggian air, catatan</td><td>Saat kamu mengirim laporan genangan</td><td>Menampilkan kondisi genangan untuk warga lain setelah diverifikasi</td></tr>
+<tr><td>Lokasi pantauan (mis. Rumah, Kantor) dan radiusnya</td><td>Saat kamu menyimpannya</td><td>Mengirim notifikasi bila ada genangan di sekitarnya</td></tr>
+<tr><td>Laporan foto tidak pantas</td><td>Saat kamu melaporkan foto</td><td>Moderasi konten</td></tr>
+<tr><td>Laporan galat (jenis perangkat, versi aplikasi, jejak galat)</td><td>Saat aplikasi atau panel mengalami galat</td><td>Memperbaiki masalah teknis. Tanpa email, nama, atau lokasi</td></tr>
+</table></div>
+<p>Lokasi favorit prakiraan dan cache peta hanya tersimpan di perangkatmu.</p>
+
+<h2>2. Siapa yang bisa melihat data kamu</h2>
+<ul>
+  <li><b>Warga lain</b> hanya melihat titik genangan, kategori, waktu, dan foto dari laporan yang sudah disetujui. Nama, email, dan koordinat persis tempat kamu melapor tidak ditampilkan.</li>
+  <li><b>Verifikator</b> (petugas di kab/kota terkait) dan <b>admin</b> melihat isi laporan, termasuk koordinatnya, untuk memeriksa kebenarannya. Identitas pelapor disamarkan menjadi kode, misalnya "Warga #A1B2".</li>
+  <li>Laporan bisa disetujui otomatis bila beberapa warga berbeda melaporkan titik yang sama dan di wilayah itu belum ada verifikator. Titik seperti ini diberi label "terverifikasi otomatis".</li>
+</ul>
+
+<h2>3. Pihak ketiga yang memproses data</h2>
+<ul>
+  <li><b>Supabase</b>, server di Singapura: database, penyimpanan foto, dan akun.</li>
+  <li><b>Mapbox</b> dan <b>OpenStreetMap</b>: gambar peta. Perangkatmu meminta potongan peta untuk area yang sedang dilihat.</li>
+  <li><b>Rain Viewer</b>: gambar radar hujan.</li>
+  <li><b>BMKG</b>: data prakiraan dan peringatan dini. Hanya kode wilayah yang dikirim, bukan data pribadimu.</li>
+  <li><b>Sentry</b>: laporan galat tanpa data pribadi, bila diaktifkan.</li>
+  <li><b>Vercel</b>: hosting panel web petugas.</li>
+</ul>
+<p>Kami tidak menjual data pribadi dan tidak memakainya untuk iklan.</p>
+
+<h2>4. Berapa lama data disimpan</h2>
+<ul>
+  <li>Data akun, laporan, foto, dan lokasi pantauan disimpan selama akunmu aktif.</li>
+  <li>Bila akun dihapus, semua data itu ikut terhapus. Titik genangan yang sudah terbentuk tetap ada tanpa keterkaitan denganmu, sebagai riwayat banjir.</li>
+  <li>Log aktivitas petugas disimpan untuk keperluan audit.</li>
+</ul>
+
+<h2>5. Hak kamu</h2>
+<ul>
+  <li>Melihat data akunmu di menu <b>Akun</b>. Perubahan atau koreksi data bisa diminta lewat email di bawah.</li>
+  <li>Menghapus akun beserta semua laporan dan fotomu kapan saja: <b>Akun → Hapus akun</b>.</li>
+  <li>Mencabut izin lokasi, kamera, dan notifikasi lewat pengaturan perangkat. Aplikasi tetap bisa dipakai, tanpa fitur yang memerlukan izin tersebut.</li>
+  <li>Meminta salinan data atau mengajukan keberatan lewat email di bawah.</li>
+</ul>
+
+<h2>6. Anak-anak</h2>
+<p>Aplikasi ini tidak ditujukan untuk anak di bawah 13 tahun. Anak di bawah 17 tahun sebaiknya mendaftar dengan pendampingan orang tua atau wali.</p>
+
+<h2>7. Keamanan</h2>
+<p>Koneksi selalu terenkripsi (HTTPS). Akses data dibatasi per peran di tingkat database, dan foto laporan disimpan privat. Foto hanya bisa dibuka lewat tautan sementara setelah laporannya disetujui. Tidak ada sistem yang 100% aman. Bila terjadi kebocoran data, kami akan memberi tahu pengguna terdampak sesuai ketentuan UU PDP.</p>
+
+<h2>8. Perubahan kebijakan</h2>
+<p>Bila kebijakan ini berubah, tanggal berlaku di atas akan diperbarui. Perubahan penting juga diumumkan di aplikasi.</p>
+
+<h2>9. Kontak</h2>
+<p>Pertanyaan, permintaan data, atau keberatan: <a href="mailto:adrianfaishalhilmi@gmail.com">adrianfaishalhilmi@gmail.com</a>.</p>
+</article>
+</main>
+</body>
+</html>

@@ -10,6 +10,7 @@ export default function Queue() {
   const { settings, toast, fail, reloadPending, region } = useApp()
   const [tab, setTab] = useState('pending')
   const [selId, setSelId] = useState(null)
+  const flags = useLoad(() => call(sb.rpc('photo_flag_queue')).then(r => r.filter(x => inRegion(x.adm4, region?.code))), [], 60000)
   const list = useLoad(() => call(sb.rpc('review_queue', { st: tab })).then(r => r.filter(x => inRegion(x.adm4, region?.code))), [tab], tab === 'pending' ? 30000 : 0)
   const counts = useLoad(() => Promise.all(TABS.map(([s]) =>
     byRegion(sb.from('reports').select('id', { count: 'exact', head: true }).eq('status', s), region?.code).then(r => r.count ?? 0))), [tab], 30000)
@@ -28,10 +29,12 @@ export default function Queue() {
   }
 
   return (
-    <div className="queue">
+    <div className={'queue' + (tab === 'flags' ? ' wide' : '')}>
       <div className="card col qlist">
         <Seg grow value={tab} onChange={t => { setTab(t); setSelId(null) }}
-          items={TABS.map(([k, l], i) => ({ key: k, label: counts.data ? `${l} · ${counts.data[i]}` : l }))} />
+          items={TABS.map(([k, l], i) => ({ key: k, label: counts.data ? `${l} · ${counts.data[i]}` : l }))
+            .concat({ key: 'flags', label: `Foto dilaporkan${flags.data ? ' · ' + flags.data.length : ''}` })} />
+        {tab === 'flags' ? <Flags flags={flags} /> :
         <div className="col scroll" style={{ gap: 6 }}>
           {list.error && <LoadError error={list.error} retry={list.reload} />}
           {!list.data ? <Spinner /> : !rows.length ? <Empty title="Antrean kosong" sub={tab === 'pending' ? 'Semua laporan sudah ditinjau.' : 'Belum ada laporan di sini.'} /> :
@@ -52,9 +55,9 @@ export default function Queue() {
                 </button>
               )
             })}
-        </div>
+        </div>}
       </div>
-      {sel && <Detail key={sel.id} r={sel} staleH={staleH} done={done} />}
+      {tab !== 'flags' && sel && <Detail key={sel.id} r={sel} staleH={staleH} done={done} />}
     </div>
   )
 }
@@ -181,6 +184,52 @@ function Detail({ r, staleH, done }) {
             : `Ditolak oleh ${r.reviewer || 'staf'} · ${ago(r.reviewed_at)} · Alasan: ${r.reject_note || REASONS.find(x => x.key === r.reject_reason)?.label}`}
         </div>
       )}
+    </div>
+  )
+}
+
+const FLAG = { tidak_pantas: 'Tidak pantas', bukan_banjir: 'Bukan genangan', data_pribadi: 'Data pribadi', lainnya: 'Lainnya' }
+
+// Foto yang dilaporkan warga. ≥ 3 laporan = sudah disembunyikan otomatis, menunggu keputusan petugas.
+function Flags({ flags }) {
+  const { toast, fail } = useApp()
+  const rows = flags.data || []
+  const urls = useLoad(() => rows.length ? call(sb.storage.from('report-photos').createSignedUrls(rows.map(r => r.photo_path), 3600)) : Promise.resolve([]), [flags.data])
+  const resolve = async (r, hide) => {
+    try {
+      await call(sb.rpc('resolve_photo', { path: r.photo_path, hide }))
+      toast(hide ? 'Foto disembunyikan dari aplikasi' : 'Foto tetap ditampilkan')
+    } catch (e) { fail(e) }
+    flags.reload()
+  }
+  if (flags.error) return <LoadError error={flags.error} retry={flags.reload} />
+  if (!flags.data) return <Spinner />
+  if (!rows.length) return <Empty title="Tidak ada foto dilaporkan" sub="Foto yang dilaporkan warga sebagai tidak pantas akan muncul di sini." />
+  return (
+    <div className="col scroll" style={{ gap: 10 }}>
+      {rows.map((r, i) => {
+        const u = urls.data?.[i]?.signedUrl
+        return (
+          <div key={r.photo_path} className="panel col" style={{ gap: 10 }}>
+            <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+              {u ? <a className="photo" style={{ width: 96, height: 96, flex: 'none' }} href={u} target="_blank" rel="noreferrer" title="Buka foto ukuran penuh"><img src={u} alt={'Foto dilaporkan di ' + (r.point_name || 'titik')} /></a>
+                : <div className="photo ph" style={{ width: 96, height: 96, flex: 'none' }}>memuat…</div>}
+              <div className="col" style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                <span className="ell" style={{ fontSize: 13, fontWeight: 600 }}>{r.point_name || 'Titik dihapus'}</span>
+                <span className="sub">{r.district ? 'Kec. ' + r.district + ' · ' : ''}{r.flags} laporan · pertama {ago(r.first_at)}</span>
+                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                  {r.reasons.map(x => <span key={x} className="tagx" style={{ background: '#FDE3E4', color: '#9C161C' }}>{FLAG[x]}</span>)}
+                  {r.hidden && <span className="tagx" style={{ background: '#EEF0F4', color: '#3B4157' }}>Disembunyikan sementara</span>}
+                </div>
+              </div>
+            </div>
+            <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn soft sm" onClick={() => resolve(r, false)}><Icon n="visibility" size={18} />Tetap tampilkan</button>
+              <button className="btn red sm" onClick={() => resolve(r, true)}><Icon n="visibility_off" size={18} />Sembunyikan foto</button>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

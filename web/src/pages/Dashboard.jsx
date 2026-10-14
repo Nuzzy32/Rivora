@@ -10,7 +10,7 @@ export const pointPin = (p, onClick) => {
 }
 
 export default function Dashboard() {
-  const { go, settings, forecast: fc, region, regionName } = useApp()
+  const { go, settings, forecast: fc, region, regionName, admin } = useApp()
   const pts = useLoad(() => call(sb.rpc('flood_points_all', { region: region?.code ?? null })), [], 30000)
   const pend = useLoad(() => call(byRegion(sb.from('reports').select('created_at').eq('status', 'pending'), region?.code).order('created_at')), [], 30000)
 
@@ -74,6 +74,37 @@ export default function Dashboard() {
             })}
         </div>
       </div>
+      {admin && <Uncovered />}
+    </div>
+  )
+}
+
+// Admin: kab/kota yang 7 hari terakhir ada laporan tetapi belum punya verifikator.
+function Uncovered() {
+  const { go, settings } = useApp()
+  const rows = useLoad(() => call(sb.rpc('uncovered_regions')), [], 60000)
+  if (rows.error) return <LoadError error={rows.error} retry={rows.reload} />
+  if (!rows.data?.length) return null
+  const crowd = settings?.crowd_min_reporters
+  return (
+    <div className="card col" style={{ gap: 6 }}>
+      <div className="row between" style={{ paddingBottom: 6, gap: 12 }}>
+        <div className="col" style={{ gap: 2 }}>
+          <span className="h2">Wilayah tanpa verifikator</span>
+          <span className="sub">{crowd ? `Laporan di sini hanya terverifikasi otomatis (≥ ${crowd} warga) atau oleh admin.` : 'Verifikasi otomatis nonaktif: laporan di sini hanya bisa disetujui admin.'}</span>
+        </div>
+        <button className="btn soft sm" onClick={() => go('users')}><Icon n="person_add" size={18} />Atur verifikator</button>
+      </div>
+      {rows.data.slice(0, 10).map(r => (
+        <div key={r.region} className="li" style={{ cursor: 'default' }}>
+          <Icon n="location_city" size={20} style={{ color: '#6B7385' }} />
+          <div className="col" style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <span className="ell" style={{ fontSize: 13, fontWeight: 600 }}>{r.name}</span>
+            <span className="sub">{r.province} · {r.reports_7d} laporan 7 hari · terakhir {ago(r.last_report_at)}</span>
+          </div>
+          {r.pending > 0 && <span className="pill" style={{ background: '#FFF3D3', color: '#6E4E00' }}>{r.pending} menunggu</span>}
+        </div>
+      ))}
     </div>
   )
 }

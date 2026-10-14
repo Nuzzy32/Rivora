@@ -82,7 +82,7 @@ class Shelter {
       name,
       address,
       status; // type: posko | faskes; status: open | full | closed
-  final String? note, phone;
+  final String? note, phone, source; // source 'OpenStreetMap' = wajib atribusi
   final LatLng pos;
 
   Shelter.fromRow(Map<String, dynamic> r)
@@ -93,6 +93,7 @@ class Shelter {
       status = r['status'] as String,
       note = r['note'] as String?,
       phone = r['phone'] as String?,
+      source = r['source'] as String?,
       pos = LatLng((r['lat'] as num).toDouble(), (r['lng'] as num).toDouble());
 }
 
@@ -419,9 +420,17 @@ class Api {
     ];
   });
 
-  static Future<List<Shelter>> shelters() => _call(() async {
+  /// Posko & faskes dalam 30 km dari titik peta (data se-Indonesia terlalu banyak untuk dimuat semua).
+  static Future<List<Shelter>> shelters(LatLng at) => _call(() async {
     final rows =
-        (await _keep('shelters', () => _db.rpc('shelters_list'))).$1 as List;
+        (await _keep(
+              'shelters',
+              () => _db.rpc(
+                'shelters_list',
+                params: {'lat': at.latitude, 'lng': at.longitude},
+              ),
+            )).$1
+            as List;
     return [for (final r in rows) Shelter.fromRow(r as Map<String, dynamic>)];
   });
 
@@ -476,17 +485,26 @@ class Api {
     ];
   });
 
-  /// Foto laporan yang sudah disetujui, sebagai signed URL 1 jam.
-  static Future<List<String>> pointPhotos(int pointId) => _call(() async {
+  /// Foto laporan yang sudah disetujui: (path, signed URL 1 jam). Path dipakai untuk melaporkan foto.
+  static Future<List<(String, String)>> pointPhotos(
+    int pointId,
+  ) => _call(() async {
     final paths =
         (await _db.rpc('point_photos', params: {'point_id': pointId}) as List)
             .cast<String>();
-    if (paths.isEmpty) return <String>[];
+    if (paths.isEmpty) return <(String, String)>[];
     final urls = await _db.storage
         .from('report-photos')
         .createSignedUrlsResult(paths, 3600);
-    return [for (final u in urls.whereType<SignedUrlSuccess>()) u.signedUrl];
+    return [
+      for (final u in urls.whereType<SignedUrlSuccess>()) (u.path, u.signedUrl),
+    ];
   });
+
+  /// Laporkan foto (tidak_pantas | bukan_banjir | data_pribadi | lainnya).
+  static Future<void> flagPhoto(String path, String reason) => _call(
+    () => _db.rpc('flag_photo', params: {'path': path, 'reason': reason}),
+  );
 
   // --- Prakiraan (diisi Edge Function `bmkg-forecast` tiap jam)
   /// Cari kelurahan/kecamatan/kota se-Indonesia. Kecamatan & kota memakai desa wakilnya untuk prakiraan.

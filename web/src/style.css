@@ -144,6 +144,7 @@ main { padding: 20px 28px 48px 24px; display: flex; flex-direction: column; gap:
 
 /* Antrean */
 .queue { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 20px; align-items: start }
+.queue.wide { grid-template-columns: minmax(0, 1fr) }
 .qlist { padding: 16px; gap: 12px; position: sticky; top: 20px; max-height: calc(100vh - 120px) }
 .scroll { overflow-y: auto; margin: 0 -4px; padding: 0 4px }
 .qi { display: flex; gap: 12px; padding: 10px; border: 1.5px solid transparent; border-radius: 18px; background: #fff; text-align: left; align-items: center; flex: none }

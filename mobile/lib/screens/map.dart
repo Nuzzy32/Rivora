@@ -1602,48 +1602,51 @@ class _History extends StatelessWidget {
   }
 }
 
-/// Foto dari laporan yang sudah disetujui saja (privasi pelapor).
+/// Foto dari laporan yang sudah disetujui saja (privasi pelapor). Ketuk untuk layar penuh & laporkan.
 class _Photos extends StatelessWidget {
   final int pointId;
   const _Photos(this.pointId);
 
-  static final _cache = <int, Future<List<String>>>{};
+  static final _cache = <int, Future<List<(String, String)>>>{};
 
   @override
   Widget build(BuildContext context) => FutureBuilder(
     future: _cache[pointId] ??= Api.pointPhotos(
       pointId,
-    ).catchError((_) => <String>[]),
+    ).catchError((_) => <(String, String)>[]),
     builder: (context, snap) {
-      final urls = snap.data ?? const <String>[];
-      if (urls.isEmpty) return const SizedBox.shrink();
+      final photos = snap.data ?? const <(String, String)>[];
+      if (photos.isEmpty) return const SizedBox.shrink();
+      Widget thumb(int i) => Expanded(
+        child: GestureDetector(
+          onTap: () => _PhotoViewer.open(context, photos, i, pointId),
+          child: Semantics(
+            button: true,
+            label: 'Buka foto laporan ${i + 1}',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(photos[i].$2, height: 84, fit: BoxFit.cover),
+            ),
+          ),
+        ),
+      );
       return Row(
         children: [
-          for (final u in urls.take(2)) ...[
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  u,
-                  height: 84,
-                  fit: BoxFit.cover,
-                  semanticLabel: 'Foto laporan',
-                ),
-              ),
-            ),
+          for (var i = 0; i < photos.length && i < 2; i++) ...[
+            thumb(i),
             const SizedBox(width: 8),
           ],
           Expanded(
-            child: urls.length > 2
-                ? Container(
+            child: photos.length > 2
+                ? Tap(
+                    onTap: () => _PhotoViewer.open(context, photos, 2, pointId),
                     height: 84,
-                    decoration: BoxDecoration(
-                      color: C.bg,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    radius: 16,
+                    color: C.bg,
+                    label: 'Lihat ${photos.length - 2} foto lainnya',
                     child: Center(
                       child: Text(
-                        '+${urls.length - 2}',
+                        '+${photos.length - 2}',
                         style: t(13, w6, C.body),
                       ),
                     ),
@@ -1656,6 +1659,161 @@ class _Photos extends StatelessWidget {
   );
 }
 
+/// Foto layar penuh (geser antarfoto, cubit untuk zoom) + "Laporkan foto".
+class _PhotoViewer extends StatefulWidget {
+  final List<(String, String)> photos;
+  final int start, pointId;
+  const _PhotoViewer(this.photos, this.start, this.pointId);
+
+  static void open(
+    BuildContext context,
+    List<(String, String)> photos,
+    int i,
+    int pointId,
+  ) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => _PhotoViewer(photos, i, pointId),
+    ),
+  );
+
+  @override
+  State<_PhotoViewer> createState() => _PhotoViewerState();
+}
+
+class _PhotoViewerState extends State<_PhotoViewer> {
+  late final _page = PageController(initialPage: widget.start);
+  late int _i = widget.start;
+  final _sent = <String>{};
+
+  @override
+  void dispose() {
+    _page.dispose();
+    super.dispose();
+  }
+
+  // Toast aplikasi tertutup halaman layar penuh ini, jadi pakai SnackBar.
+  void _say(String m) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(m)));
+
+  Future<void> _flag() async {
+    if (!app.loggedIn) {
+      _say('Masuk dulu untuk melaporkan foto.');
+      return;
+    }
+    final path = widget.photos[_i].$1;
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Laporkan foto ini', style: t(17, w7)),
+              const SizedBox(height: 2),
+              Text(
+                'Petugas akan memeriksa. Foto yang dilaporkan banyak warga disembunyikan sementara.',
+                style: t(13, FontWeight.w400, C.muted, 1.4),
+              ),
+              const SizedBox(height: 10),
+              for (final (k, l, ic) in const [
+                (
+                  'tidak_pantas',
+                  'Tidak pantas atau mengganggu',
+                  Icons.block_rounded,
+                ),
+                (
+                  'bukan_banjir',
+                  'Bukan foto genangan',
+                  Icons.image_not_supported_rounded,
+                ),
+                (
+                  'data_pribadi',
+                  'Menampilkan wajah, pelat, atau data pribadi',
+                  Icons.privacy_tip_rounded,
+                ),
+                ('lainnya', 'Alasan lain', Icons.more_horiz_rounded),
+              ])
+                Tap(
+                  onTap: () => Navigator.pop(ctx, k),
+                  height: 56,
+                  radius: 16,
+                  label: l,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    children: [
+                      IconTile(ic, C.redTint, C.red, size: 40, iconSize: 20),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(l, style: t(14, w6))),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (reason == null) return;
+    try {
+      await Api.flagPhoto(path, reason);
+      setState(() => _sent.add(path));
+      _Photos._cache.remove(widget.pointId);
+      _say('Terima kasih. Foto akan diperiksa petugas.');
+    } on ApiError catch (e) {
+      _say(e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sent = _sent.contains(widget.photos[_i].$1);
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(
+          'Foto ${_i + 1} dari ${widget.photos.length}',
+          style: t(15, w6, Colors.white),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: sent ? null : _flag,
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              minimumSize: const Size(48, 48),
+            ),
+            icon: Icon(sent ? Icons.check_rounded : Icons.flag_outlined),
+            label: Text(sent ? 'Dilaporkan' : 'Laporkan'),
+          ),
+        ],
+      ),
+      body: PageView.builder(
+        controller: _page,
+        itemCount: widget.photos.length,
+        onPageChanged: (i) => setState(() => _i = i),
+        itemBuilder: (_, i) => InteractiveViewer(
+          maxScale: 4,
+          child: Center(
+            child: Image.network(
+              widget.photos[i].$2,
+              fit: BoxFit.contain,
+              semanticLabel: 'Foto laporan ${i + 1}',
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Detail posko / faskes.
 class ShelterSheet extends StatelessWidget {
   final String id;
@@ -1663,7 +1821,9 @@ class ShelterSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = app.shelters.firstWhere((x) => x.id == id);
+    // Daftar dimuat ulang per area; kalau sudah tidak ada, tutup saja.
+    final s = app.shelters.where((x) => x.id == id).firstOrNull;
+    if (s == null) return const SizedBox.shrink();
     final posko = s.type == 'posko', full = s.status == 'full';
     return _Sheet(
       children: [
@@ -1728,7 +1888,17 @@ class ShelterSheet extends StatelessWidget {
             const Icon(Icons.location_on_rounded, size: 20, color: C.muted),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(s.address, style: t(13, FontWeight.w400, C.sub, 1.5)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(s.address, style: t(13, FontWeight.w400, C.sub, 1.5)),
+                  if (s.source == 'OpenStreetMap')
+                    Text(
+                      'Data © kontributor OpenStreetMap. Hubungi dulu sebelum datang.',
+                      style: t(11, FontWeight.w400, C.muted, 1.4),
+                    ),
+                ],
+              ),
             ),
           ],
         ),

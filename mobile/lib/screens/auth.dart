@@ -245,6 +245,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: const Color(0xFFC3C8D4),
                   )
                 : Btn.primary(_register ? 'Daftar' : 'Masuk', onTap: _submit),
+            if (_register)
+              Center(
+                child: TextButton(
+                  onPressed: app.openPrivacy,
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 44)),
+                  child: Text.rich(
+                    TextSpan(
+                      text: 'Dengan mendaftar, kamu menyetujui ',
+                      style: t(12, FontWeight.w400, C.muted),
+                      children: [
+                        TextSpan(
+                          text: 'Kebijakan Privasi',
+                          style: t(12, w6, C.blueInk),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
             const SizedBox(height: 10),
             Btn(
               'Lanjut sebagai Tamu',

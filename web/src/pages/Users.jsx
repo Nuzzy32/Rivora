@@ -136,7 +136,14 @@ const NUMS = [
   ['stale_hours', 'Batas “Perlu Konfirmasi”', 'Titik tanpa pembaruan selama ini akan memudar di peta.', 'jam', 1, 1, 12],
   ['reports_per_hour', 'Batas laporan per akun', 'Jumlah maksimal laporan tiap jam untuk mencegah spam.', '/ jam', 1, 1, 20],
   ['merge_radius_m', 'Radius gabung & duplikat', 'Laporan baru dalam radius ini ditempelkan ke titik yang sama; kategori sama ditandai duplikat.', 'm', 50, 50, 500],
+  ['crowd_min_reporters', 'Verifikasi otomatis', 'Di kab/kota tanpa verifikator: titik jadi Terverifikasi bila sebanyak ini warga berbeda melaporkannya.', 'warga', 1, 0, 10],
+  ['crowd_window_min', 'Jendela verifikasi otomatis', 'Laporan warga harus masuk dalam rentang waktu ini agar dihitung bersama.', 'menit', 15, 15, 240],
 ]
+// 1 warga bukan konfirmasi: langkah dari 0 (nonaktif) langsung ke 2.
+const stepOf = (k, v, dir, step, min, max) => k === 'crowd_min_reporters'
+  ? (dir < 0 ? (v <= 2 ? 0 : v - 1) : (v === 0 ? 2 : Math.min(max, v + 1)))
+  : (dir < 0 ? Math.max(min, v - step) : Math.min(max, v + step))
+const SETTING_KEYS = ['notify_min_depth', 'notify_official', 'notify_verified', 'stale_hours', 'reports_per_hour', 'merge_radius_m', 'crowd_min_reporters', 'crowd_window_min']
 
 function Settings() {
   const { settings, reloadSettings, toast, fail } = useApp()
@@ -145,12 +152,11 @@ function Settings() {
   if (!settings) return <Spinner />
   const d = draft || settings
   const set = x => setDraft({ ...d, ...x })
-  const dirty = draft && NUMS.concat([['notify_min_depth'], ['notify_official'], ['notify_verified']]).some(([k]) => draft[k] !== settings[k])
+  const dirty = draft && SETTING_KEYS.some(k => draft[k] !== settings[k])
   const save = async () => {
     setBusy(true)
     try {
-      const { notify_min_depth, notify_official, notify_verified, stale_hours, reports_per_hour, merge_radius_m } = d
-      await call(sb.from('app_settings').update({ notify_min_depth, notify_official, notify_verified, stale_hours, reports_per_hour, merge_radius_m }).eq('id', true))
+      await call(sb.from('app_settings').update(Object.fromEntries(SETTING_KEYS.map(k => [k, d[k]]))).eq('id', true))
       reloadSettings(); setDraft(null)
       toast('Pengaturan disimpan · berlaku untuk laporan berikutnya')
     } catch (e) { fail(e) } finally { setBusy(false) }
@@ -186,9 +192,9 @@ function Settings() {
         <div key={k} className="panel row" style={{ gap: 14 }}>
           <div className="col" style={{ flex: 1, gap: 2 }}><span className="h3">{label}</span><span className="sub" style={{ fontSize: 12, lineHeight: 1.5 }}>{desc}</span></div>
           <div className="row" style={{ gap: 6 }}>
-            <button className="ibtn white" aria-label={'Kurangi ' + label} disabled={d[k] <= min} onClick={() => set({ [k]: Math.max(min, d[k] - step) })}><Icon n="remove" size={18} /></button>
-            <span style={{ minWidth: 76, textAlign: 'center', fontSize: 15, fontWeight: 700 }}>{d[k]} {unit}</span>
-            <button className="ibtn white" aria-label={'Tambah ' + label} disabled={d[k] >= max} onClick={() => set({ [k]: Math.min(max, d[k] + step) })}><Icon n="add" size={18} /></button>
+            <button className="ibtn white" aria-label={'Kurangi ' + label} disabled={d[k] <= min} onClick={() => set({ [k]: stepOf(k, d[k], -1, step, min, max) })}><Icon n="remove" size={18} /></button>
+            <span style={{ minWidth: 76, textAlign: 'center', fontSize: 15, fontWeight: 700 }}>{k === 'crowd_min_reporters' && !d[k] ? 'Nonaktif' : `${d[k]} ${unit}`}</span>
+            <button className="ibtn white" aria-label={'Tambah ' + label} disabled={d[k] >= max} onClick={() => set({ [k]: stepOf(k, d[k], 1, step, min, max) })}><Icon n="add" size={18} /></button>
           </div>
         </div>
       ))}

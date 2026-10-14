@@ -307,6 +307,19 @@ class AccountScreen extends StatelessWidget {
             ],
           ),
         ],
+        const SizedBox(height: 8),
+        Center(
+          child: TextButton.icon(
+            onPressed: app.openPrivacy,
+            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+            icon: const Icon(
+              Icons.privacy_tip_outlined,
+              size: 18,
+              color: C.muted,
+            ),
+            label: Text('Kebijakan privasi', style: t(13, w6, C.sub)),
+          ),
+        ),
       ]),
     );
   }
