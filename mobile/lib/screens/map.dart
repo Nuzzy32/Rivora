@@ -69,7 +69,7 @@ class _MapScreenState extends State<MapScreen>
     _flyTo(app.center, 15);
     app.showToast(
       app.userPos == null
-          ? 'Kamu di luar Surabaya. Peta dipusatkan di Balai Kota.'
+          ? 'Lokasi belum bisa dibaca. Coba lagi di tempat terbuka.'
           : 'Peta dipusatkan ke lokasimu',
     );
   }
@@ -161,14 +161,6 @@ class _MapScreenState extends State<MapScreen>
                     height: 64,
                     child: const _UserDot(),
                   ),
-                if (app.locDenied)
-                  Marker(
-                    point: balaiKota,
-                    width: 90,
-                    height: 64,
-                    alignment: Alignment.topCenter,
-                    child: const _CityHall(),
-                  ),
                 if (flood)
                   for (final p in app.points)
                     Marker(
@@ -256,7 +248,7 @@ class _MapScreenState extends State<MapScreen>
             child: Appear(
               child: EmptyCard(
                 Icons.sentiment_satisfied_rounded,
-                'Belum ada laporan di sekitarmu',
+                'Belum ada laporan di area ini',
                 'Dalam radius 5 km belum ada genangan yang dilaporkan. Kalau kamu melihat genangan, bantu warga lain dengan melapor.',
                 iconColor: C.green,
                 action: Btn.violet(
@@ -290,7 +282,7 @@ class _MapScreenState extends State<MapScreen>
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Cari jalan atau lokasi…',
+                          'Cari kota, kecamatan, atau lokasi…',
                           overflow: TextOverflow.ellipsis,
                           style: t(14, FontWeight.w400, C.muted),
                         ),
@@ -430,7 +422,7 @@ class _MapScreenState extends State<MapScreen>
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Lokasi belum aktif. Peta dipusatkan di Balai Kota.',
+                              'Lokasi belum aktif. Peta menampilkan posisi terakhir yang kamu buka.',
                               style: t(13, FontWeight.w400, C.ink, 1.4),
                             ),
                           ),
@@ -765,26 +757,6 @@ class _UserDot extends StatelessWidget {
         ),
       ),
     ),
-  );
-}
-
-class _CityHall extends StatelessWidget {
-  const _CityHall();
-
-  @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        decoration: BoxDecoration(
-          color: C.ink,
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Text('Balai Kota', style: t(11, w6, Colors.white)),
-      ),
-      const Icon(Icons.location_on_rounded, size: 30, color: C.ink),
-    ],
   );
 }
 
@@ -1742,7 +1714,7 @@ class ShelterSheet extends StatelessWidget {
               size: 12,
             ),
             Pill(
-              '${km(meters(app.center, s.pos))} dari ${app.userPos == null ? 'Balai Kota' : 'lokasimu'}',
+              '${km(meters(app.center, s.pos))} dari ${app.userPos == null ? 'pusat peta' : 'lokasimu'}',
               C.bg,
               C.sub,
               size: 12,

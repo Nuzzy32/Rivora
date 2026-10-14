@@ -17,10 +17,17 @@ class EmergencyScreen extends StatelessWidget {
     'damkar': Icons.fire_truck_rounded,
     'ambulans': Icons.local_hospital_rounded,
     'polisi': Icons.local_police_rounded,
+    'bnpb': Icons.shield_rounded,
+    'sar': Icons.sailing_rounded,
   };
 
   @override
   Widget build(BuildContext context) {
+    // Kontak nasional + kontak kab/kota tempat pengguna berada (GPS, atau lokasi prakiraan).
+    final adm4 = app.contactAdm4;
+    final contacts = app.contacts.where((c) => c.appliesTo(adm4)).toList()
+      ..sort((a, b) => (a.region == null ? 1 : 0) - (b.region == null ? 1 : 0));
+    final local = contacts.any((c) => c.region != null);
     final posko = app.shelters.where((s) => s.type == 'posko').toList()
       ..sort(
         (a, b) =>
@@ -86,7 +93,7 @@ class EmergencyScreen extends StatelessWidget {
                       Text('Panggil 112', style: t(30, w7, Colors.white, 1.1)),
                       const SizedBox(height: 2),
                       Text(
-                        'Command Center Surabaya · gratis, 24 jam',
+                        'Nomor darurat nasional · gratis, 24 jam',
                         style: t(13, FontWeight.w400, Colors.white, 1.45),
                       ),
                     ],
@@ -101,7 +108,7 @@ class EmergencyScreen extends StatelessWidget {
             padding: const EdgeInsets.all(6),
             child: Column(
               children: [
-                for (final c in app.contacts)
+                for (final c in contacts)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
                     child: Row(
@@ -140,6 +147,15 @@ class EmergencyScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (!local) ...[
+            const SizedBox(height: 10),
+            Note(
+              adm4 == null
+                  ? 'Aktifkan lokasi agar nomor BPBD dan layanan di daerahmu ikut tampil.'
+                  : 'Nomor BPBD untuk daerahmu belum tersedia. Gunakan 112 atau BNPB 117.',
+              icon: Icons.info_outline_rounded,
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [

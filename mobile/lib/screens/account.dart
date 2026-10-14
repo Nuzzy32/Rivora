@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -667,11 +668,51 @@ class _WatchScreenState extends State<WatchScreen> {
       _rename = TextEditingController();
   (String, LatLng)? _picked;
   late LatLng _mapPin = app.center;
+  List<(String, LatLng)> _hits = [];
+  Timer? _wait, _pinWait;
+  String? _pinLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    _labelPin();
+  }
+
+  /// Nama desa di bawah pin peta, ditunggu sebentar setelah peta berhenti digeser.
+  void _labelPin() {
+    _pinWait?.cancel();
+    _pinWait = Timer(const Duration(milliseconds: 450), () async {
+      final p = _mapPin;
+      final s = await _nearAddr(p);
+      if (mounted && p == _mapPin) setState(() => _pinLabel = s);
+    });
+  }
+
+  /// Cari kelurahan/kecamatan/kota se-Indonesia (titik tengahnya; geser di "Peta" untuk titik persis).
+  void _search(String q) {
+    _wait?.cancel();
+    if (q.trim().length < 3) return setState(() => _hits = []);
+    _wait = Timer(const Duration(milliseconds: 350), () async {
+      try {
+        final r = await Api.searchRegions(q);
+        if (mounted && _q.text == q) {
+          setState(
+            () => _hits = [
+              for (final p in r)
+                if (p.pos != null) (p.label, p.pos!),
+            ],
+          );
+        }
+      } on ApiError catch (_) {}
+    });
+  }
 
   static const _radii = [(500, '500 m'), (1000, '1 km'), (2000, '2 km')];
 
   @override
   void dispose() {
+    _wait?.cancel();
+    _pinWait?.cancel();
     _custom.dispose();
     _q.dispose();
     _rename.dispose();
@@ -684,14 +725,17 @@ class _WatchScreenState extends State<WatchScreen> {
     _mode = 'search';
     _radius = 1000;
     _picked = null;
+    _hits = [];
     _custom.clear();
     _q.clear();
   });
 
-  String _nearAddr(LatLng p) {
-    final a = Api.addresses.where((a) => meters(a.$2, p) < 600).firstOrNull;
-    return a?.$1 ??
-        'Titik di peta (${p.latitude.toStringAsFixed(4)}, ${p.longitude.toStringAsFixed(4)})';
+  Future<String> _nearAddr(LatLng p) async {
+    try {
+      final v = await Api.villageAt(p);
+      if (v != null) return 'Sekitar ${v.label}';
+    } catch (_) {} // offline/gagal: pakai koordinat
+    return 'Titik di peta (${p.latitude.toStringAsFixed(4)}, ${p.longitude.toStringAsFixed(4)})';
   }
 
   Future<void> _confirm() async {
@@ -700,9 +744,9 @@ class _WatchScreenState extends State<WatchScreen> {
       if (app.userPos == null) {
         return app.showToast('Lokasi belum aktif. Pilih lewat Cari atau Peta.');
       }
-      at = (_nearAddr(app.userPos!), app.userPos!);
+      at = (await _nearAddr(app.userPos!), app.userPos!);
     } else if (_mode == 'map') {
-      at = (_nearAddr(_mapPin), _mapPin);
+      at = (await _nearAddr(_mapPin), _mapPin);
     } else {
       at = _picked;
       if (at == null) return setState(() => _err = true);
@@ -916,11 +960,8 @@ class _WatchScreenState extends State<WatchScreen> {
   }
 
   Widget _addForm() {
-    final q = _q.text.trim().toLowerCase();
-    final suggest = Api.addresses
-        .where((a) => q.isEmpty || a.$1.toLowerCase().contains(q))
-        .take(4)
-        .toList();
+    final q = _q.text.trim();
+    final suggest = _hits.take(5).toList();
     return Box(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1036,7 +1077,12 @@ class _WatchScreenState extends State<WatchScreen> {
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(_nearAddr(app.userPos!), style: t(13, w6)),
+                              Text(
+                                app.herePlace != null
+                                    ? 'Sekitar ${app.herePlace!.label}'
+                                    : 'Titik GPS (${app.userPos!.latitude.toStringAsFixed(4)}, ${app.userPos!.longitude.toStringAsFixed(4)})',
+                                style: t(13, w6),
+                              ),
                               Text(
                                 'Lokasimu sekarang, dari GPS',
                                 style: t(11, FontWeight.w400, C.muted),
@@ -1050,12 +1096,15 @@ class _WatchScreenState extends State<WatchScreen> {
           if (_mode == 'search') ...[
             TextField(
               controller: _q,
-              onChanged: (_) => setState(() {
-                _picked = null;
-                _err = false;
-              }),
+              onChanged: (v) {
+                setState(() {
+                  _picked = null;
+                  _err = false;
+                });
+                _search(v);
+              },
               style: t(14),
-              decoration: inputDeco('Cari alamat, misalnya Candi Lempung')
+              decoration: inputDeco('Cari kelurahan, kecamatan, atau kota')
                   .copyWith(
                     prefixIcon: const Icon(
                       Icons.search_rounded,
@@ -1099,7 +1148,9 @@ class _WatchScreenState extends State<WatchScreen> {
               Padding(
                 padding: const EdgeInsets.all(4),
                 child: Text(
-                  'Alamat tidak ditemukan. Coba pilih di peta.',
+                  q.length < 3
+                      ? 'Ketik minimal 3 huruf. Untuk titik persis, pilih di Peta.'
+                      : 'Belum ditemukan. Coba nama lain atau pilih di Peta.',
                   style: t(12, FontWeight.w400, C.muted),
                 ),
               ),
@@ -1120,7 +1171,12 @@ class _WatchScreenState extends State<WatchScreen> {
                               InteractiveFlag.drag | InteractiveFlag.pinchZoom,
                         ),
                         onPositionChanged: (cam, g) {
-                          if (g) setState(() => _mapPin = cam.center);
+                          if (!g) return;
+                          setState(() {
+                            _mapPin = cam.center;
+                            _pinLabel = null;
+                          });
+                          _labelPin();
                         },
                       ),
                       children: [
@@ -1189,7 +1245,12 @@ class _WatchScreenState extends State<WatchScreen> {
               children: [
                 const Icon(Icons.pin_drop_rounded, size: 18, color: C.violet),
                 const SizedBox(width: 8),
-                Expanded(child: Text(_nearAddr(_mapPin), style: t(13, w6))),
+                Expanded(
+                  child: Text(
+                    _pinLabel ?? 'Mencari nama lokasi…',
+                    style: t(13, w6),
+                  ),
+                ),
               ],
             ),
           ],

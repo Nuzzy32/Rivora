@@ -1,6 +1,6 @@
 # SIGAP Banjir (mobile)
 
-Aplikasi Flutter warga Surabaya: status genangan per lokasi, prakiraan BMKG, laporan warga, posko/faskes, dan panduan siaga. Desain dari Claude Design (`SIGAP Banjir.dc.html`), kebutuhan dari PRD. Backend: Supabase (`../supabase`).
+Aplikasi Flutter untuk warga se-Indonesia: status genangan per lokasi, prakiraan BMKG, laporan warga, posko/faskes, dan panduan siaga. Desain dari Claude Design (`SIGAP Banjir.dc.html`), kebutuhan dari PRD. Backend: Supabase (`../supabase`).
 
 ```bash
 cp env.example.json env.json   # isi URL + publishable key proyek Supabase

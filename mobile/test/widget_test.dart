@@ -63,7 +63,7 @@ void main() {
       },
     });
     expect(p.depth, 2);
-    expect(p.district, 'Surabaya');
+    expect(p.district, '');
     expect(p.segment!.first.latitude, -7.3129);
     expect(p.estimate!.medianHours, 3);
     expect(p.history!.monthly.length, 12);

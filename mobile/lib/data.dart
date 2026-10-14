@@ -6,7 +6,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const balaiKota = LatLng(-7.2575, 112.7479);
+/// Pusat peta awal bila lokasi belum aktif dan belum pernah membuka peta (Monas, Jakarta).
+const startCenter = LatLng(-6.1754, 106.8272);
 const distance = Distance();
 double meters(LatLng a, LatLng b) => distance.as(LengthUnit.Meter, a, b);
 
@@ -40,7 +41,7 @@ class FloodPoint {
   FloodPoint.fromRow(Map<String, dynamic> r)
     : id = r['id'] as int,
       name = r['name'] as String,
-      district = (r['district'] as String?) ?? 'Surabaya',
+      district = (r['district'] as String?) ?? '',
       source = r['source'] as String,
       pos = LatLng((r['lat'] as num).toDouble(), (r['lng'] as num).toDouble()),
       segment = r['segment'] == null
@@ -98,8 +99,13 @@ class Shelter {
 class Contact {
   final String name,
       phone,
-      category; // category: bpbd | damkar | ambulans | polisi
-  const Contact(this.name, this.phone, this.category);
+      category; // bpbd | damkar | ambulans | polisi | bnpb | sar | umum
+  final String? region; // kode kab/kota; null = nasional
+  const Contact(this.name, this.phone, this.category, [this.region]);
+
+  /// Kontak nasional selalu berlaku; kontak daerah hanya untuk desa di kab/kota itu.
+  bool appliesTo(String? adm4) =>
+      region == null || (adm4 != null && adm4.startsWith('$region.'));
 }
 
 class Slot {
@@ -137,23 +143,37 @@ class Slot {
 class Place {
   final String adm4, name, label;
   final String? tag;
-  const Place(this.adm4, this.name, this.label, [this.tag]);
+  final LatLng? pos; // titik tengah wilayah (untuk memindah peta)
+  final int level; // hasil cari: 1 provinsi … 4 desa (menentukan zoom peta)
+  const Place(
+    this.adm4,
+    this.name,
+    this.label, [
+    this.tag,
+    this.pos,
+    this.level = 4,
+  ]);
 
   /// Induk wilayahnya saja ("Gayungan, Kota Surabaya, Jawa Timur").
   String get sub =>
       label.startsWith('$name, ') ? label.substring(name.length + 2) : label;
-  Place withTag(String? t) => Place(adm4, name, label, t);
+  Place withTag(String? t) => Place(adm4, name, label, t, pos);
   Map<String, Object?> toJson() => {
     'adm4': adm4,
     'name': name,
     'label': label,
     'tag': tag,
+    if (pos != null) 'lat': pos!.latitude,
+    if (pos != null) 'lng': pos!.longitude,
   };
   factory Place.fromJson(Map<String, dynamic> j) => Place(
     j['adm4'] as String,
     j['name'] as String,
     j['label'] as String,
     j['tag'] as String?,
+    j['lat'] == null
+        ? null
+        : LatLng((j['lat'] as num).toDouble(), (j['lng'] as num).toDouble()),
   );
 }
 
@@ -411,7 +431,7 @@ class Api {
               'contacts',
               () => _db
                   .from('emergency_contacts')
-                  .select('name, phone, category')
+                  .select('name, phone, category, region')
                   .order('sort_order'),
             )).$1
             as List;
@@ -421,6 +441,7 @@ class Api {
           r['name'] as String,
           r['phone'] as String,
           r['category'] as String,
+          r['region'] as String?,
         ),
     ];
   });
@@ -475,7 +496,19 @@ class Api {
     return [
       for (final r in rows)
         if (r['adm4'] != null)
-          Place(r['adm4'] as String, r['name'] as String, r['label'] as String),
+          Place(
+            r['adm4'] as String,
+            r['name'] as String,
+            r['label'] as String,
+            null,
+            r['lat'] == null
+                ? null
+                : LatLng(
+                    (r['lat'] as num).toDouble(),
+                    (r['lng'] as num).toDouble(),
+                  ),
+            (r['level'] as num?)?.toInt() ?? 4,
+          ),
     ];
   });
 
@@ -490,7 +523,13 @@ class Api {
     final r = rows.firstOrNull;
     return r == null
         ? null
-        : Place(r['code'] as String, r['name'] as String, r['label'] as String);
+        : Place(
+            r['code'] as String,
+            r['name'] as String,
+            r['label'] as String,
+            null,
+            LatLng((r['lat'] as num).toDouble(), (r['lng'] as num).toDouble()),
+          );
   });
 
   /// Prakiraan BMKG satu desa. Cache server kosong/lebih dari 1 jam → Edge Function mengambil dari BMKG
@@ -797,20 +836,6 @@ class Api {
 
   static Future<void> deleteWatch(int id) =>
       _call(() => _db.from('watch_locations').delete().eq('id', id));
-
-  /// Saran alamat untuk "Cari alamat". ponytail: daftar tetap; ganti ke geocoder (mis. Nominatim via Edge Function) bila perlu.
-  static const addresses = [
-    ('Jl. Candi Lempung, Benowo', LatLng(-7.2432, 112.6390)),
-    ('Jl. Ketintang, Gayungan', LatLng(-7.3105, 112.7280)),
-    ('Jl. Ketintang Baru, Gayungan', LatLng(-7.3132, 112.7276)),
-    ('Jl. Raya Darmo, Tegalsari', LatLng(-7.2873, 112.7381)),
-    ('Jl. Kertajaya Indah, Mulyorejo', LatLng(-7.2795, 112.7790)),
-    ('Jl. Ahmad Yani, Wonokromo', LatLng(-7.3083, 112.7350)),
-    ('Jl. Rungkut Madya, Rungkut', LatLng(-7.3330, 112.7700)),
-    ('Jl. Jemursari, Wonocolo', LatLng(-7.3230, 112.7440)),
-    ('Jl. Gubeng Pojok, Gubeng', LatLng(-7.2650, 112.7500)),
-    ('Jl. Dharmahusada, Gubeng', LatLng(-7.2680, 112.7680)),
-  ];
 
   /// Rain Viewer diambil langsung oleh aplikasi (PRD §10), tanpa kunci API.
   static Future<Radar> radar() async {

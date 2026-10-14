@@ -2,7 +2,7 @@
 
 # SIGAP Banjir
 
-**Status genangan per lokasi untuk warga Surabaya.**
+**Status genangan per lokasi untuk warga di seluruh Indonesia.**
 Tinggi air, waktu pembaruan, dan sumbernya, supaya warga bisa memutuskan rute atau mengungsi sebelum terjebak.
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?logo=flutter&logoColor=white)
@@ -30,15 +30,15 @@ SIGAP Banjir menjawab satu pertanyaan: **jalan atau lokasi ini aman dilalui atau
 
 | | |
 | --- | --- |
-| **Peta genangan** | Titik dan ruas jalan tergenang di atas OpenStreetMap. Warnanya mengikuti 5 tingkat ketinggian air (aman, semata kaki, selutut, sepinggang, sedada), selalu disertai teks dan ilustrasi, tidak hanya warna. |
+| **Peta genangan** | Titik dan ruas jalan tergenang di atas peta Mapbox/OpenStreetMap, bisa dicari per kelurahan, kecamatan, atau kota se-Indonesia. Warnanya mengikuti 5 tingkat ketinggian air (aman, semata kaki, selutut, sepinggang, sedada), selalu disertai teks dan ilustrasi, tidak hanya warna. |
 | **Label sumber** | Setiap titik berlabel *Resmi*, *Terverifikasi*, atau *Belum Terverifikasi*. Laporan tanpa pembaruan lebih dari 3 jam otomatis menjadi *Perlu Konfirmasi* dan penandanya memudar. |
 | **Laporan warga** | Foto (1–3), kategori ketinggian bergambar, dan lokasi GPS yang bisa digeser. Laporan dalam radius 100 m dari titik aktif digabung ke titik itu. Batasnya 5 laporan per jam per akun. |
 | **Lokasi pantauan** | Simpan rumah, kampus, atau kantor (maksimal 5) dengan radius 500 m–2 km. Notifikasi hanya dari laporan *Terverifikasi* atau *Resmi* selutut ke atas, supaya tidak ada alarm palsu. |
-| **Prakiraan BMKG** | Per 3 jam untuk tiap kecamatan, diperbarui tiap jam di server, lengkap dengan perkiraan jam hujan reda dan peringatan dini. |
+| **Prakiraan BMKG** | Per 3 jam untuk desa/kelurahan mana pun di Indonesia (lokasi GPS, hasil cari, atau favorit seperti Rumah/Kantor), disimpan 1 jam di server, dengan jam sesuai WIB/WITA/WIT, perkiraan jam hujan reda, dan peringatan dini BMKG untuk area itu. |
 | **Radar hujan** | Animasi radar 2 jam terakhir dari Rain Viewer. |
 | **Riwayat & area rawan** | Estimasi lama surut (median, hanya jika ada ≥ 5 kejadian), grafik kejadian 12 bulan, dan lapisan area rawan. |
-| **Darurat** | Panggil 112 sekali ketuk, kontak BPBD dan Damkar, posko serta faskes terdekat, dan panduan siaga banjir yang tetap bisa dibuka offline. |
-| **Panel web** | Verifikator meninjau antrean laporan (foto, peta mini, reputasi pelapor yang disamarkan, tanda duplikat, koreksi kategori), menandai surut, dan menerbitkan status *Resmi* dari BPBD/Pemkot. Admin mengelola posko, faskes, kontak darurat, peran dan blokir akun, ambang notifikasi, serta melihat log aktivitas. |
+| **Darurat** | Panggil 112 sekali ketuk, kontak nasional (BNPB, Basarnas) ditambah BPBD dan layanan kab/kota tempatmu berada, posko serta faskes terdekat, dan panduan siaga banjir yang tetap bisa dibuka offline. |
+| **Panel web** | Verifikator meninjau antrean laporan untuk kab/kota yang ditugaskan kepadanya (foto, peta mini, reputasi pelapor yang disamarkan, tanda duplikat, koreksi kategori), menandai surut, dan menerbitkan status *Resmi* dari BPBD/Pemkot. Admin nasional mengatur wilayah tugas verifikator, mengelola posko, faskes, kontak darurat, peran dan blokir akun, ambang notifikasi, serta melihat log aktivitas. |
 | **Mode Tamu** | Peta, prakiraan, dan posko bisa dilihat tanpa daftar. Login hanya diminta untuk melapor dan memantau. |
 
 ## Arsitektur

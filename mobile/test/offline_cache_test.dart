@@ -30,7 +30,7 @@ void main() {
       });
       final c = await Api.contacts();
       expect(c.single.name, 'BPBD Kota Surabaya');
-      expect(await Api.floodPoints(balaiKota), isEmpty);
+      expect(await Api.floodPoints(startCenter), isEmpty);
       expect(Api.pointsCachedAt, at);
     },
   );

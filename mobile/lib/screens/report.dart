@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -32,6 +33,9 @@ class _ReportScreenState extends State<ReportScreen> {
   int? _depth;
   int _quota = Api.reportsPerHour;
 
+  Place? _village; // desa terdekat pin (nama tempat laporan)
+  Timer? _lookup;
+
   @override
   void initState() {
     super.initState();
@@ -39,20 +43,33 @@ class _ReportScreenState extends State<ReportScreen> {
       (q) => mounted ? setState(() => _quota = q) : null,
       onError: (_) {},
     );
+    _findVillage();
+  }
+
+  /// Nama tempat dari desa terdekat pin; dicari setelah pin berhenti digeser.
+  void _findVillage() {
+    _lookup?.cancel();
+    _lookup = Timer(const Duration(milliseconds: 500), () async {
+      try {
+        final v = await Api.villageAt(_pin);
+        if (mounted) setState(() => _village = v);
+      } catch (_) {} // offline/gagal: tetap "Titik pilihan di peta"
+    });
   }
 
   @override
   void dispose() {
+    _lookup?.cancel();
     _note.dispose();
     super.dispose();
   }
 
   String get _place {
     if (app.reportFor != null && !_moved) return app.reportFor!.name;
-    final near = Api.addresses
-        .where((a) => meters(a.$2, _pin) < 300)
-        .firstOrNull;
-    return near?.$1 ?? 'Titik pilihan di peta';
+    final v = _village;
+    return v == null
+        ? 'Titik pilihan di peta'
+        : 'Sekitar ${v.name}, ${v.sub.split(', ').first}';
   }
 
   Future<void> _addPhoto() async {
@@ -184,6 +201,7 @@ class _ReportScreenState extends State<ReportScreen> {
                         _pin = cam.center;
                         _moved = true;
                       });
+                      _findVillage();
                     }
                   },
                 ),

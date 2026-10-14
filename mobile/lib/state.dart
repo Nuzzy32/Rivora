@@ -84,6 +84,10 @@ class AppState extends ChangeNotifier {
   bool permNotif = false; // langkah izin kedua (notifikasi)
 
   LatLng? userPos;
+
+  /// Desa/kelurahan tempat pengguna berada (dari GPS); dasar kontak darurat setempat.
+  Place? herePlace;
+  LatLng? _lastCenter; // posisi peta terakhir, disimpan di HP
   bool locDenied = false;
   bool _locForever = false;
   LatLng? mapCenter;
@@ -145,7 +149,12 @@ class AppState extends ChangeNotifier {
   bool recovery = false; // dibuka dari link reset kata sandi di email
 
   int get unread => loggedIn ? notifs.where((n) => n.unread).length : 0;
-  LatLng get center => userPos ?? balaiKota;
+
+  /// Pusat peta: GPS → posisi peta terakhir → lokasi prakiraan → Monas.
+  LatLng get center => userPos ?? _lastCenter ?? fcPlace?.pos ?? startCenter;
+
+  /// Desa acuan kontak darurat: GPS, kalau belum ada pakai lokasi prakiraan.
+  String? get contactAdm4 => herePlace?.adm4 ?? fcPlace?.adm4;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -153,6 +162,10 @@ class AppState extends ChangeNotifier {
     final saved = _prefs.getString('fc.place');
     if (saved != null) fcPlace = Place.fromJson(jsonDecode(saved));
     fcAuto = _prefs.getBool('fc.auto') ?? true;
+    final last = _prefs.getStringList('map.center');
+    if (last != null) {
+      _lastCenter = LatLng(double.parse(last[0]), double.parse(last[1]));
+    }
     favs = [
       for (final f in _prefs.getStringList('fc.favs') ?? [])
         Place.fromJson(jsonDecode(f)),
@@ -211,7 +224,24 @@ class AppState extends ChangeNotifier {
 
   /// Muat ulang saat peta digeser cukup jauh dari titik muat terakhir.
   void mapMoved(LatLng c) {
+    _lastCenter = c;
+    _prefs.setStringList('map.center', ['${c.latitude}', '${c.longitude}']);
     if (_pointsAt == null || meters(c, _pointsAt!) > 4000) loadPoints(c);
+  }
+
+  /// Bawa peta ke wilayah hasil pencarian (kelurahan/kecamatan/kota se-Indonesia).
+  void focusPlace(Place p) {
+    if (p.pos == null) return;
+    centeredOnUser = true;
+    mapCenter = p.pos;
+    mapZoom = switch (p.level) {
+      1 => 8,
+      2 => 11,
+      3 => 13,
+      _ => 15,
+    };
+    go(Scr.map);
+    loadPoints(p.pos!);
   }
 
   Future<void> _loadUserData() async {
@@ -258,7 +288,8 @@ class AppState extends ChangeNotifier {
   Future<void> _followGps() async {
     try {
       final p = await Api.villageAt(userPos!);
-      if (p != null && p.adm4 != fcPlace?.adm4) {
+      set(() => herePlace = p);
+      if (fcAuto && p != null && p.adm4 != fcPlace?.adm4) {
         await loadForecast(p, auto: true);
       }
     } on ApiError catch (_) {} // offline: tetap lokasi terakhir
@@ -359,7 +390,7 @@ class AppState extends ChangeNotifier {
         ),
       );
       userPos = LatLng(pos.latitude, pos.longitude);
-      if (fcAuto) _followGps();
+      _followGps();
     } catch (_) {}
     notifyListeners();
   }

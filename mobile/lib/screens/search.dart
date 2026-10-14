@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data.dart';
@@ -5,7 +7,7 @@ import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
 
-/// M04: cari jalan, kelurahan, posko.
+/// M04: cari wilayah se-Indonesia, laporan genangan, posko.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -15,9 +17,25 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _q = TextEditingController();
+  Timer? _wait;
+  List<Place> _places = [];
+
+  /// Desa/kecamatan/kota se-Indonesia; ketuk untuk memindahkan peta ke sana.
+  void _search(String q) {
+    _wait?.cancel();
+    if (q.trim().length < 3) return setState(() => _places = []);
+    setState(() {});
+    _wait = Timer(const Duration(milliseconds: 350), () async {
+      try {
+        final r = await Api.searchRegions(q);
+        if (mounted && _q.text == q) setState(() => _places = r);
+      } on ApiError catch (_) {}
+    });
+  }
 
   @override
   void dispose() {
+    _wait?.cancel();
     _q.dispose();
     super.dispose();
   }
@@ -39,6 +57,19 @@ class _SearchScreenState extends State<SearchScreen> {
                 VoidCallback onTap,
               })
             >[
+              if (q.isNotEmpty)
+                for (final p in _places)
+                  (
+                    name: p.name,
+                    sub: p.sub,
+                    badge: 'Wilayah',
+                    tint: C.blueTint,
+                    ink: C.blueInk,
+                    icon: Icons.location_city_rounded,
+                    iconBg: C.blueTint2,
+                    iconFg: C.blueInk,
+                    onTap: () => app.focusPlace(p),
+                  ),
               for (final p in app.points)
                 (
                   name: p.name,
@@ -71,7 +102,10 @@ class _SearchScreenState extends State<SearchScreen> {
             ]
             .where(
               (r) =>
-                  q.isEmpty || '${r.name} ${r.sub}'.toLowerCase().contains(q),
+                  q.isEmpty ||
+                  r.badge ==
+                      'Wilayah' || // sudah dicocokkan server (bisa fuzzy)
+                  '${r.name} ${r.sub}'.toLowerCase().contains(q),
             )
             .toList();
 
@@ -109,10 +143,10 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: TextField(
                         controller: _q,
                         autofocus: true,
-                        onChanged: (_) => setState(() {}),
+                        onChanged: _search,
                         style: t(14),
                         decoration: InputDecoration.collapsed(
-                          hintText: 'Nama jalan, kelurahan, posko…',
+                          hintText: 'Kelurahan, kecamatan, kota, posko…',
                           hintStyle: t(14, FontWeight.w400, C.faint),
                         ),
                       ),
@@ -156,14 +190,16 @@ class _SearchScreenState extends State<SearchScreen> {
         const SizedBox(height: 16),
         if (q.isEmpty || rows.isNotEmpty)
           Text(
-            q.isEmpty ? 'Laporan terbaru di Surabaya' : '${rows.length} hasil',
+            q.isEmpty
+                ? 'Laporan terbaru di sekitar peta'
+                : '${rows.length} hasil',
             style: t(13, w6, C.muted),
           ),
         if (q.isNotEmpty && rows.isEmpty)
           EmptyCard(
             Icons.travel_explore_rounded,
             'Tidak ditemukan',
-            'Belum ada laporan untuk "${_q.text.trim()}". Coba nama jalan lain, misalnya Darmo atau Ketintang.',
+            'Belum ada wilayah atau laporan untuk "${_q.text.trim()}". Coba nama kelurahan, kecamatan, atau kota.',
           ),
         for (final r in rows)
           Padding(
