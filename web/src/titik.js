@@ -21,6 +21,7 @@ else {
   $('dot').style.background = d.color
   $('dlabel').textContent = p.status === 'receded' ? 'Sudah surut' : d.label
   $('dlabel').style.color = d.ink
+  $('dcm').style.color = d.ink // kotak berwarna terang juga di mode gelap
   $('dcm').textContent = p.status === 'receded' ? `sejak ${when(p.receded_at)}` : `± ${d.mk} cm`
   const v = VER[p.verification]
   const pills = [v.label, p.status === 'needs_confirmation' && 'Perlu konfirmasi', p.report_count > 0 && `${p.report_count} laporan warga`].filter(Boolean)
