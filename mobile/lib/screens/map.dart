@@ -480,7 +480,7 @@ class _MapScreenState extends State<MapScreen>
                       ),
                     ),
                   ),
-                if (app.layers.contains('risk')) ...[
+                if (app.layers.contains('risk') && !app.riskLegendHidden) ...[
                   const SizedBox(height: 8),
                   const Appear(child: _RiskLegend()),
                 ],
@@ -905,7 +905,7 @@ class _RiskLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(12),
+    padding: const EdgeInsets.fromLTRB(12, 6, 4, 10),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(15),
@@ -914,37 +914,63 @@ class _RiskLegend extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 6,
+        Row(
           children: [
-            for (final (a, label) in const [
-              (.10, 'Kadang (3–5)'),
-              (.18, 'Sering (6–10)'),
-              (.28, 'Sangat sering (>10)'),
-            ])
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 22,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: C.grayInk.withValues(alpha: a + .1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(label, style: t(12, w5, C.sub)),
-                ],
+            Expanded(
+              child: Text(
+                'Area rawan · kejadian 12 bulan',
+                style: t(12, w6, C.ink),
               ),
+            ),
+            IconButton(
+              onPressed: () => app.set(() => app.riskLegendHidden = true),
+              tooltip: 'Tutup legenda',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.close_rounded, size: 18, color: C.muted),
+            ),
           ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Kejadian dalam 12 bulan. Berdasarkan kejadian tercatat di SIGAP Banjir${Api.riskSince.isEmpty ? '' : ' sejak ${Api.riskSince}'}.',
-          style: t(11, FontWeight.w400, C.muted, 1.4),
-        ),
+        if (app.risk.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Text(
+              'Belum ada area rawan di data SIGAP Banjir. Area terbentuk otomatis dari lokasi yang tergenang ≥ 3 kali dalam 12 bulan, dihitung ulang setiap hari.',
+              style: t(12, FontWeight.w400, C.body, 1.45),
+            ),
+          )
+        else ...[
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            children: [
+              for (final (a, label) in const [
+                (.10, 'Kadang (3–5)'),
+                (.18, 'Sering (6–10)'),
+                (.28, 'Sangat sering (>10)'),
+              ])
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 22,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: C.grayInk.withValues(alpha: a + .1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(label, style: t(12, w5, C.sub)),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Berdasarkan kejadian tercatat di SIGAP Banjir${Api.riskSince.isEmpty ? '' : ' sejak ${Api.riskSince}'}.',
+            style: t(11, FontWeight.w400, C.muted, 1.4),
+          ),
+        ],
       ],
     ),
   );
@@ -1061,8 +1087,9 @@ class _RadarCard extends StatelessWidget {
     final st = app.radarState, r = app.radar;
     final ready = st == 'ready' && r != null;
     final last = ready ? r.frames.length - 1 : 0;
+    final min = app.radarMin;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      padding: EdgeInsets.fromLTRB(16, min ? 6 : 14, 6, min ? 6 : 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(26),
@@ -1078,178 +1105,208 @@ class _RadarCard extends StatelessWidget {
               Expanded(child: Text('Radar hujan', style: t(14, w6))),
               if (ready)
                 Pill(
-                  '${hm(r.frames[app.radarFrame].time)}${app.radarFrame == last ? ' · terbaru' : ''}',
+                  '${hm(r.frames[app.radarFrame].time)}${app.radarFrame == last && !min ? ' · terbaru' : ''}',
                   C.violetTint,
                   C.violetInk,
                   size: 12,
                 ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (ready)
-            Row(
-              children: [
-                SquareBtn(
-                  app.radarPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
-                  bg: C.violetInk,
-                  fg: Colors.white,
-                  shadowed: false,
-                  label: app.radarPlaying ? 'Jeda radar' : 'Putar radar',
-                  onTap: app.toggleRadarPlay,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Slider(
-                        value: app.radarFrame.toDouble(),
-                        max: last.toDouble(),
-                        divisions: math.max(1, last),
-                        label: hm(r.frames[app.radarFrame].time),
-                        onChanged: (v) {
-                          app.stopRadar();
-                          app.set(() => app.radarFrame = v.round());
-                        },
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              hm(r.frames.first.time),
-                              style: t(
-                                11,
-                                FontWeight.w400,
-                                const Color(0xFF5E6478),
-                              ),
-                            ),
-                            Text(
-                              hm(r.frames.last.time),
-                              style: t(
-                                11,
-                                FontWeight.w400,
-                                const Color(0xFF5E6478),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+              if (ready && min)
+                IconButton(
+                  onPressed: app.toggleRadarPlay,
+                  tooltip: app.radarPlaying ? 'Jeda radar' : 'Putar radar',
+                  icon: Icon(
+                    app.radarPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: C.violetInk,
                   ),
                 ),
-              ],
-            )
-          else if (st == 'unavailable')
-            Row(
-              children: [
-                const IconTile(
-                  Icons.cloud_off_rounded,
-                  C.grayTint,
-                  C.grayInk,
-                  size: 48,
-                  iconSize: 24,
-                  radius: 16,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Radar sedang tidak tersedia. Peta lain tetap berjalan.',
-                    style: t(13, FontWeight.w400, C.ink, 1.45),
-                  ),
-                ),
-              ],
-            )
-          else
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: C.line,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: C.line,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Memuat radar…',
-                        style: t(13, FontWeight.w400, C.body),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          const SizedBox(height: 10),
-          Text(
-            'Menunjukkan hujan yang sudah terjadi, bukan perkiraan ke depan.',
-            style: t(12, FontWeight.w400, C.body, 1.45),
-          ),
-          const SizedBox(height: 4),
-          const Divider(height: 1, color: C.line),
-          Row(
-            children: [
-              if (ready)
-                Expanded(
-                  child: Wrap(
-                    spacing: 10,
-                    children: [
-                      for (final (c, l) in const [
-                        (C.blueLight, 'Ringan'),
-                        (C.blue, 'Sedang'),
-                        (C.violet, 'Lebat'),
-                      ])
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: c,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            Text(l, style: t(12, FontWeight.w400, C.sub)),
-                          ],
-                        ),
-                    ],
-                  ),
-                )
-              else
-                const Spacer(),
-              TextButton(
-                onPressed: () => launchUrl(
-                  Uri.parse('https://www.rainviewer.com'),
-                  mode: LaunchMode.externalApplication,
-                ),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(48, 48),
-                  padding: EdgeInsets.zero,
-                ),
-                child: Text(
-                  'Weather data by Rain Viewer',
-                  style: t(11, w5, C.blueInk),
+              IconButton(
+                onPressed: () => app.set(() => app.radarMin = !min),
+                tooltip: min ? 'Tampilkan panel radar' : 'Ciutkan panel radar',
+                icon: Icon(
+                  min ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                  color: C.sub,
                 ),
               ),
             ],
           ),
+          // Atribusi Rain Viewer wajib tetap terlihat walau panel diciutkan.
+          if (min)
+            Padding(
+              padding: const EdgeInsets.only(left: 28),
+              child: Text(
+                'Weather data by Rain Viewer',
+                style: t(10, w5, C.muted),
+              ),
+            ),
+          if (!min) ...[
+            const SizedBox(height: 10),
+            if (ready)
+              Row(
+                children: [
+                  SquareBtn(
+                    app.radarPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    bg: C.violetInk,
+                    fg: Colors.white,
+                    shadowed: false,
+                    label: app.radarPlaying ? 'Jeda radar' : 'Putar radar',
+                    onTap: app.toggleRadarPlay,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Slider(
+                          value: app.radarFrame.toDouble(),
+                          max: last.toDouble(),
+                          divisions: math.max(1, last),
+                          label: hm(r.frames[app.radarFrame].time),
+                          onChanged: (v) {
+                            app.stopRadar();
+                            app.set(() => app.radarFrame = v.round());
+                          },
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                hm(r.frames.first.time),
+                                style: t(
+                                  11,
+                                  FontWeight.w400,
+                                  const Color(0xFF5E6478),
+                                ),
+                              ),
+                              Text(
+                                hm(r.frames.last.time),
+                                style: t(
+                                  11,
+                                  FontWeight.w400,
+                                  const Color(0xFF5E6478),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            else if (st == 'unavailable')
+              Row(
+                children: [
+                  const IconTile(
+                    Icons.cloud_off_rounded,
+                    C.grayTint,
+                    C.grayInk,
+                    size: 48,
+                    iconSize: 24,
+                    radius: 16,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Radar sedang tidak tersedia. Peta lain tetap berjalan.',
+                      style: t(13, FontWeight.w400, C.ink, 1.45),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: C.line,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: C.line,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Memuat radar…',
+                          style: t(13, FontWeight.w400, C.body),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 10),
+            Text(
+              'Menunjukkan hujan yang sudah terjadi, bukan perkiraan ke depan.',
+              style: t(12, FontWeight.w400, C.body, 1.45),
+            ),
+            const SizedBox(height: 4),
+            const Divider(height: 1, color: C.line),
+            Row(
+              children: [
+                if (ready)
+                  Expanded(
+                    child: Wrap(
+                      spacing: 10,
+                      children: [
+                        for (final (c, l) in const [
+                          (C.blueLight, 'Ringan'),
+                          (C.blue, 'Sedang'),
+                          (C.violet, 'Lebat'),
+                        ])
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: c,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(l, style: t(12, FontWeight.w400, C.sub)),
+                            ],
+                          ),
+                      ],
+                    ),
+                  )
+                else
+                  const Spacer(),
+                TextButton(
+                  onPressed: () => launchUrl(
+                    Uri.parse('https://www.rainviewer.com'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: Text(
+                    'Weather data by Rain Viewer',
+                    style: t(11, w5, C.blueInk),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

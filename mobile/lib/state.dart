@@ -129,6 +129,8 @@ class AppState extends ChangeNotifier {
   Radar? radar;
   String radarState = 'idle'; // idle | loading | ready | unavailable
   int radarFrame = 0;
+  bool radarMin = false; // panel radar diciutkan agar peta terlihat
+  bool riskLegendHidden = false;
   Timer? _radarTimer;
   bool get radarPlaying => _radarTimer != null;
 
@@ -413,6 +415,9 @@ class AppState extends ChangeNotifier {
     HapticFeedback.selectionClick();
     if (!layers.remove(k)) layers.add(k);
     if (k == 'radar') layers.contains('radar') ? _loadRadar() : stopRadar();
+    if (k == 'radar') radarMin = false;
+    // Menyalakan ulang = legenda tampil lagi.
+    if (k == 'risk') riskLegendHidden = false;
     notifyListeners();
   }
 
