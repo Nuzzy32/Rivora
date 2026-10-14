@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'motion.dart';
@@ -721,5 +724,41 @@ class Choice extends StatelessWidget {
 double topInset(BuildContext c) => MediaQuery.paddingOf(c).top;
 double bottomInset(BuildContext c) => MediaQuery.paddingOf(c).bottom;
 
-/// Tinggi tab bar + inset bawah; konten diberi ruang sebesar ini.
-double tabSpace(BuildContext c) => 86 + bottomInset(c) + 24;
+/// Tab bar mengambang: kapsul setinggi [tabBarH], di atas home indicator (min. 14 dari tepi).
+const tabBarH = 68.0;
+double tabGap(BuildContext c) => math.max(bottomInset(c), 14);
+
+/// Jarak dari bawah layar ke tepi atas tab bar; elemen mengambang di peta diletakkan di atasnya.
+double tabTop(BuildContext c) => tabBarH + tabGap(c);
+
+/// Ruang bawah untuk konten yang bisa digulir supaya tidak tertutup tab bar.
+double tabSpace(BuildContext c) => tabTop(c) + 24;
+
+/// Peta dasar. Dengan MAPBOX_TOKEN (env.json): gaya Mapbox Streets yang bersih, penanda genangan
+/// menonjol (gratis s.d. 200 rb tile/bulan). Tanpa token: OSM standar yang diredupkan.
+const _mapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
+const _softOsm = ColorFilter.matrix([
+  0.52, 0.42, 0.04, 0, 6, //
+  0.12, 0.83, 0.04, 0, 8,
+  0.12, 0.42, 0.45, 0, 26,
+  0, 0, 0, 1, 0,
+]);
+Widget baseTiles(BuildContext c) => _mapboxToken.isEmpty
+    ? TileLayer(
+        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        userAgentPackageName: 'com.rivora.sigap_banjir',
+        tileBuilder: (context, tile, _) =>
+            ColorFiltered(colorFilter: _softOsm, child: tile),
+      )
+    : TileLayer(
+        urlTemplate:
+            'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}{r}?access_token=$_mapboxToken',
+        tileDimension: 512,
+        zoomOffset: -1,
+        retinaMode: RetinaMode.isHighDensity(c),
+        maxNativeZoom: 21,
+        userAgentPackageName: 'com.rivora.sigap_banjir',
+      );
+const mapCredit = _mapboxToken == ''
+    ? '© OpenStreetMap contributors'
+    : '© Mapbox · © OpenStreetMap';

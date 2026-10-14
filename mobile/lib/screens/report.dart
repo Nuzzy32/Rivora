@@ -187,13 +187,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     }
                   },
                 ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.rivora.sigap_banjir',
-                  ),
-                ],
+                children: [baseTiles(context)],
               ),
               const IgnorePointer(
                 child: Center(
@@ -245,7 +239,7 @@ class _ReportScreenState extends State<ReportScreen> {
               Positioned(
                 right: 8,
                 bottom: 6,
-                child: Text('© OpenStreetMap', style: t(9, w5, C.sub)),
+                child: Text(mapCredit, style: t(9, w5, C.sub)),
               ),
             ],
           ),

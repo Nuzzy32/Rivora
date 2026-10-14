@@ -165,7 +165,7 @@ class Shell extends StatelessWidget {
               Positioned(
                 left: 24,
                 right: 24,
-                bottom: 104 + bottomInset(context),
+                bottom: tabTop(context) + 18,
                 child: IgnorePointer(
                   child: Center(
                     child: AnimatedSwitcher(
@@ -262,204 +262,167 @@ class _PageTransition extends StatelessWidget {
   );
 }
 
-/// Tab bar: Peta, Prakiraan, Lapor (tengah, menonjol), Akun, Darurat.
+/// Tab bar mengambang: kapsul biru berisi tombol bulat putih; tab aktif melebar jadi pil
+/// berlabel dengan ikon dalam lingkaran berwarna. Lapor selalu menonjol (lingkaran ungu besar),
+/// Darurat dikenali dari ikon SOS merah.
 class TabBar5 extends StatelessWidget {
   const TabBar5({super.key});
+
+  static const _d = 50.0, _gap = 4.0, _report = 60.0;
 
   @override
   Widget build(BuildContext context) {
     final tab = tabOf[app.screen];
-    Color c(int i) =>
-        tab == i ? const Color(0xFF3F7FF0) : const Color(0xFF757C90);
-    // Ikon aktif: pil indikator melebar di belakang ikon + ikon berganti ke versi terisi.
-    Widget item(
-      int i,
-      IconData icon,
-      IconData active,
-      String label,
-      VoidCallback onTap,
-    ) {
-      final on = tab == i;
-      return Expanded(
-        child: Semantics(
-          selected: on,
-          child: Tap(
-            onTap: onTap,
-            height: 60,
-            radius: 16,
-            child: TweenAnimationBuilder<Color?>(
-              tween: ColorTween(end: c(i)),
-              duration: dur(context, 220),
-              builder: (context, color, _) => Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      AnimatedContainer(
-                        duration: dur(context, 320),
-                        curve: easeOut,
-                        width: on ? 52 : 20,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: on
-                              ? C.blueTint
-                              : C.blueTint.withValues(alpha: 0),
-                          borderRadius: BorderRadius.circular(15),
+    final items = [
+      (Icons.map_outlined, 'Peta', C.blue, () => app.go(Scr.map)),
+      (Icons.cloud_outlined, 'Prakiraan', C.blue, () => app.go(Scr.forecast)),
+      (Icons.add_rounded, 'Lapor', C.violet, app.openReport),
+      (Icons.person_outline_rounded, 'Akun', C.blue, () => app.go(Scr.account)),
+      (Icons.sos_rounded, 'Darurat', C.red, () => app.go(Scr.emergency)),
+    ];
+    return Container(
+      height: tabBarH,
+      margin: EdgeInsets.fromLTRB(16, 0, 16, tabGap(context)),
+      padding: const EdgeInsets.all((tabBarH - _d) / 2),
+      decoration: BoxDecoration(
+        color: C.blue,
+        borderRadius: BorderRadius.circular(tabBarH / 2),
+        boxShadow: soft(.30, 24, 10, C.blue),
+      ),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // Pil aktif mengisi sisa lebar setelah 3 tombol bulat + tombol Lapor.
+          final pill = box.maxWidth - 3 * (_d + _gap) - (_report + _gap);
+          return Row(
+            spacing: _gap,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (final (i, (icon, label, color, onTap)) in items.indexed)
+                i == 2
+                    ? _reportBtn(context, tab == i)
+                    : _tabItem(
+                        context,
+                        tab == i && tab != 2,
+                        icon,
+                        label,
+                        color,
+                        onTap,
+                        // Saat di layar Lapor tidak ada pil; semua tab lain tetap bulat.
+                        tab == 2 ? _d : pill,
+                      ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Lapor: aksi utama, selalu ditonjolkan (lebih besar, gradien ungu, sedikit keluar kapsul).
+  Widget _reportBtn(BuildContext context, bool on) => SizedBox(
+    width: _report,
+    height: _d,
+    child: OverflowBox(maxHeight: _report, child: _reportCircle(context, on)),
+  );
+
+  Widget _reportCircle(BuildContext context, bool on) => Tap(
+    onTap: app.openReport,
+    label: 'Lapor genangan',
+    radius: _report / 2,
+    pressScale: .9,
+    child: AnimatedScale(
+      duration: dur(context, 260),
+      curve: easeOut,
+      scale: on ? 1.06 : 1,
+      child: Container(
+        width: _report,
+        height: _report,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: gViolet,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x73806EF8),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.add_rounded, size: 30, color: Colors.white),
+      ),
+    ),
+  );
+
+  Widget _tabItem(
+    BuildContext context,
+    bool on,
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+    double pill,
+  ) {
+    // Ikon tab biasa gelap; Lapor & Darurat tetap berwarna supaya menonjol.
+    final idle = color == C.blue ? C.ink : color;
+    return Semantics(
+      selected: on,
+      child: Tap(
+        onTap: onTap,
+        label: label,
+        radius: _d / 2,
+        pressScale: .92,
+        child: ExcludeSemantics(
+          child: AnimatedContainer(
+            duration: dur(context, 320),
+            curve: easeOut,
+            width: on ? pill : _d,
+            height: _d,
+            padding: const EdgeInsets.all(4),
+            clipBehavior: Clip.hardEdge,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(_d / 2),
+            ),
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: dur(context, 260),
+                  width: _d - 8,
+                  height: _d - 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: on ? color : Colors.white,
+                  ),
+                  child: Icon(icon, size: 22, color: on ? Colors.white : idle),
+                ),
+                // Label diukur pada lebar akhir pil, lalu tersingkap saat pil melebar.
+                Expanded(
+                  child: OverflowBox(
+                    alignment: Alignment.centerLeft,
+                    minWidth: 0,
+                    maxWidth: pill - _d,
+                    child: AnimatedOpacity(
+                      duration: dur(context, on ? 260 : 120),
+                      opacity: on ? 1 : 0,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 10, right: 12),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            style: t(15, w5, C.ink),
+                          ),
                         ),
                       ),
-                      AnimatedSwitcher(
-                        duration: dur(context, 220),
-                        transitionBuilder: (child, a) => ScaleTransition(
-                          scale: Tween(begin: .8, end: 1.0).animate(a),
-                          child: FadeTransition(opacity: a, child: child),
-                        ),
-                        child: Icon(
-                          on ? active : icon,
-                          key: ValueKey(on),
-                          size: 24,
-                          color: color,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 2),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(label, maxLines: 1, style: t(11, w6, color!)),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-      );
-    }
-
-    final sos = tab == 4;
-    return Container(
-      height: 86 + bottomInset(context),
-      padding: EdgeInsets.fromLTRB(6, 0, 6, 14 + bottomInset(context)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: soft(.10, 30, -10),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          item(
-            0,
-            Icons.map_outlined,
-            Icons.map_rounded,
-            'Peta',
-            () => app.go(Scr.map),
-          ),
-          item(
-            1,
-            Icons.umbrella_outlined,
-            Icons.umbrella_rounded,
-            'Prakiraan',
-            () => app.go(Scr.forecast),
-          ),
-          Expanded(
-            child: Tap(
-              onTap: app.openReport,
-              label: 'Lapor genangan',
-              pressScale: .9,
-              child: ExcludeSemantics(
-                child: OverflowBox(
-                  maxHeight: 120,
-                  child: Transform.translate(
-                    offset: const Offset(0, -14),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 58,
-                          height: 58,
-                          decoration: BoxDecoration(
-                            gradient: gViolet,
-                            borderRadius: BorderRadius.circular(21),
-                            border: Border.all(color: Colors.white, width: 4),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x73806EF8),
-                                blurRadius: 22,
-                                offset: Offset(0, 12),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.add_rounded,
-                            size: 28,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        ExcludeSemantics(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              'Lapor',
-                              maxLines: 1,
-                              style: t(11, w6, c(2)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          item(
-            3,
-            Icons.person_outline_rounded,
-            Icons.person_rounded,
-            'Akun',
-            () => app.go(Scr.account),
-          ),
-          Expanded(
-            child: Semantics(
-              selected: sos,
-              child: Tap(
-                onTap: () => app.go(Scr.emergency),
-                height: 60,
-                radius: 16,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AnimatedContainer(
-                      duration: dur(context, 220),
-                      width: 34,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: sos ? C.red : C.redTint,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.sos_rounded,
-                        size: 20,
-                        color: sos ? Colors.white : C.red,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        'Darurat',
-                        maxLines: 1,
-                        style: t(11, w6, C.red),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

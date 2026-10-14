@@ -1124,11 +1124,7 @@ class _WatchScreenState extends State<WatchScreen> {
                         },
                       ),
                       children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.rivora.sigap_banjir',
-                        ),
+                        baseTiles(context),
                         CircleLayer(
                           circles: [
                             CircleMarker(

@@ -11,14 +11,6 @@ import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
 
-/// Peta OSM dibuat lebih lembut supaya penanda genangan menonjol (mendekati warna peta di desain).
-const _softTiles = ColorFilter.matrix([
-  0.52, 0.42, 0.04, 0, 6, //
-  0.12, 0.83, 0.04, 0, 8,
-  0.12, 0.42, 0.45, 0, 26,
-  0, 0, 0, 1, 0,
-]);
-
 /// M02: peta beranda.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -46,6 +38,10 @@ class _MapScreenState extends State<MapScreen>
     _fly.dispose();
     super.dispose();
   }
+
+  /// Tombol + / − untuk yang memegang HP satu tangan atau tidak terbiasa mencubit layar.
+  void _zoomBy(double d) =>
+      _flyTo(_ctl.camera.center, (_ctl.camera.zoom + d).clamp(10, 18));
 
   /// Geser + zoom peta secara halus (bukan meloncat), supaya pengguna tetap paham posisinya.
   void _flyTo(LatLng to, double zoom) {
@@ -80,17 +76,17 @@ class _MapScreenState extends State<MapScreen>
 
   @override
   Widget build(BuildContext context) {
-    final top = topInset(context), bot = bottomInset(context);
+    final top = topInset(context), base = tabTop(context) + 14;
     final flood = app.layers.contains('flood') && !app.pointsLoading;
     final radarOn = app.layers.contains('radar');
     final rainLine = app.forecast?.rainLine;
     final ctrlBottom =
+        base +
         (radarOn
-            ? 330.0
+            ? 230.0
             : rainLine != null
-            ? 240.0
-            : 204.0) +
-        bot;
+            ? 140.0
+            : 104.0);
     final empty = flood && app.nearby.isEmpty;
     if (app.userPos != null && !app.centeredOnUser) {
       app.centeredOnUser = true;
@@ -123,12 +119,7 @@ class _MapScreenState extends State<MapScreen>
                 app.legend ? app.set(() => app.legend = false) : null,
           ),
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.rivora.sigap_banjir',
-              tileBuilder: (context, tile, _) =>
-                  ColorFiltered(colorFilter: _softTiles, child: tile),
-            ),
+            baseTiles(context),
             if (app.layers.contains('risk'))
               PolygonLayer(
                 polygons: [for (final r in app.risk) _riskPolygon(r)],
@@ -472,6 +463,31 @@ class _MapScreenState extends State<MapScreen>
           bottom: ctrlBottom,
           child: Column(
             children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: soft(.12, 20, 8),
+                ),
+                child: Column(
+                  children: [
+                    SquareBtn(
+                      Icons.add_rounded,
+                      label: 'Perbesar peta',
+                      shadowed: false,
+                      onTap: () => _zoomBy(1),
+                    ),
+                    Container(width: 28, height: 1, color: C.line),
+                    SquareBtn(
+                      Icons.remove_rounded,
+                      label: 'Perkecil peta',
+                      shadowed: false,
+                      onTap: () => _zoomBy(-1),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
               SquareBtn(
                 Icons.format_list_bulleted_rounded,
                 label: 'Legenda ketinggian air',
@@ -518,10 +534,7 @@ class _MapScreenState extends State<MapScreen>
                 color: Colors.white.withValues(alpha: .85),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                '© OpenStreetMap contributors',
-                style: t(10, w5, C.sub),
-              ),
+              child: Text(mapCredit, style: t(10, w5, C.sub)),
             ),
           ),
         ),
@@ -529,7 +542,7 @@ class _MapScreenState extends State<MapScreen>
         Positioned(
           left: 16,
           right: 16,
-          bottom: 100 + bot,
+          bottom: base,
           child: AnimatedSwitcher(
             duration: dur(context, 360),
             reverseDuration: dur(context, 160),
