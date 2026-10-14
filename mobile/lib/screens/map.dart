@@ -140,6 +140,10 @@ class _MapScreenState extends State<MapScreen>
                   urlTemplate: app.radar!.url(app.radarFrame),
                   maxNativeZoom: 7,
                   userAgentPackageName: 'com.rivora.sigap_banjir',
+                  // Frame radar berganti tiap 10 menit; tidak berguna disimpan.
+                  tileProvider: NetworkTileProvider(
+                    cachingProvider: const DisabledMapCachingProvider(),
+                  ),
                 ),
               ),
             if (flood)
@@ -403,7 +407,7 @@ class _MapScreenState extends State<MapScreen>
                 if (app.offline && app.pointsFetchedAt != null) ...[
                   Appear(
                     child: Note(
-                      'Data terakhir: ${hm(app.pointsFetchedAt!)}',
+                      'Data terakhir: ${_when(app.pointsFetchedAt!)}',
                       bold: 'Offline.',
                       icon: Icons.cloud_off_rounded,
                       bg: C.ink,
@@ -1846,4 +1850,11 @@ class _Sheet extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Jam saja untuk hari ini; tanggal ikut jika data dari hari sebelumnya (cache setelah aplikasi ditutup).
+String _when(DateTime d) {
+  final n = DateTime.now();
+  final today = d.year == n.year && d.month == n.month && d.day == n.day;
+  return today ? hm(d) : '${d.day} ${months[d.month - 1]} ${hm(d)}';
 }

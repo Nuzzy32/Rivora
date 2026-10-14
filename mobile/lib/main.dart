@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -28,6 +29,13 @@ Future<void> main() async {
     url: url,
     publishableKey: key,
     authOptions: const FlutterAuthClientOptions(localStorage: _SecureSession()),
+  );
+  // Tile yang pernah dilihat dianggap segar 30 hari: tetap tampil saat offline, juga setelah
+  // aplikasi ditutup (tile basi tidak dipakai flutter_map tanpa jaringan). Unduh massal dilarang OSM.
+  // ponytail: peta baru diperbarui tiap 30 hari; buat MapCachingProvider "offline-first" kalau perlu lebih segar.
+  BuiltInMapCachingProvider.getOrCreateInstance(
+    maxCacheSize: 300000000,
+    overrideFreshAge: const Duration(days: 30),
   );
   await app.init();
   runApp(const SigapApp());

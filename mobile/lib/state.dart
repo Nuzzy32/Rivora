@@ -180,8 +180,8 @@ class AppState extends ChangeNotifier {
     _pointsAt = at;
     try {
       points = await Api.floodPoints(at);
-      pointsFetchedAt = DateTime.now();
-      offline = false;
+      pointsFetchedAt = Api.pointsCachedAt ?? DateTime.now();
+      offline = Api.pointsCachedAt != null;
     } on ApiError {
       offline = true;
     }

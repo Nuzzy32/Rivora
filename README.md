@@ -157,7 +157,8 @@ Tes membuka semua layar beserta transisinya di layar 402 dp dan 360 dp dengan uk
 - [x] Backend Supabase: skema, RLS, laporan, verifikasi, notifikasi (data), prakiraan BMKG
 - [x] Panel web Verifikator & Admin: 6 layar, RPC dan log aktivitas di database
 - [ ] Notifikasi push (FCM)
-- [ ] Cache peta offline setelah aplikasi ditutup
+- [x] Cache peta offline setelah aplikasi ditutup: tile yang pernah dilihat (30 hari) dan data terakhir (titik, posko, kontak, area rawan, prakiraan)
+- [x] Panel web online: https://sigap-banjir-panel.vercel.app
 
 ## Sumber data
 

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const balaiKota = LatLng(-7.2575, 112.7479);
@@ -315,29 +316,62 @@ class Api {
     }
   }
 
+  /// Hasil terakhir disimpan di disk. Offline atau server gagal = pakai salinan itu,
+  /// juga setelah aplikasi ditutup. Belum pernah tersimpan = error aslinya diteruskan.
+  static Future<(dynamic, DateTime?)> _keep(
+    String key,
+    Future<dynamic> Function() fetch,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final rows = await fetch();
+      await prefs.setString(
+        'cache.$key',
+        jsonEncode({'at': DateTime.now().toIso8601String(), 'rows': rows}),
+      );
+      return (rows, null);
+    } catch (_) {
+      final s = prefs.getString('cache.$key');
+      if (s == null) rethrow;
+      final j = jsonDecode(s) as Map<String, dynamic>;
+      return (j['rows'], DateTime.parse(j['at'] as String));
+    }
+  }
+
   // --- Peta
+  /// Waktu simpan data titik yang sedang tampil jika berasal dari cache (offline), null jika baru.
+  static DateTime? pointsCachedAt;
   static Future<List<FloodPoint>> floodPoints(LatLng at) => _call(() async {
-    final rows =
-        await _db.rpc(
-              'flood_points_near',
-              params: {'at_lat': at.latitude, 'at_lng': at.longitude},
-            )
-            as List;
+    final (data, cachedAt) = await _keep(
+      'points',
+      () => _db.rpc(
+        'flood_points_near',
+        params: {'at_lat': at.latitude, 'at_lng': at.longitude},
+      ),
+    );
+    pointsCachedAt = cachedAt;
+    final rows = data as List;
     return [
       for (final r in rows) FloodPoint.fromRow(r as Map<String, dynamic>),
     ];
   });
 
   static Future<List<Shelter>> shelters() => _call(() async {
-    final rows = await _db.rpc('shelters_list') as List;
+    final rows =
+        (await _keep('shelters', () => _db.rpc('shelters_list'))).$1 as List;
     return [for (final r in rows) Shelter.fromRow(r as Map<String, dynamic>)];
   });
 
   static Future<List<Contact>> contacts() => _call(() async {
-    final rows = await _db
-        .from('emergency_contacts')
-        .select('name, phone, category')
-        .order('sort_order');
+    final rows =
+        (await _keep(
+              'contacts',
+              () => _db
+                  .from('emergency_contacts')
+                  .select('name, phone, category')
+                  .order('sort_order'),
+            )).$1
+            as List;
     return [
       for (final r in rows)
         Contact(
@@ -350,13 +384,18 @@ class Api {
 
   static String riskSince = '';
   static Future<List<RiskArea>> riskAreas() => _call(() async {
-    final rows = await _db.rpc('risk_areas') as List;
-    final first = await _db
-        .from('flood_events')
-        .select('started_at')
-        .order('started_at')
-        .limit(1)
-        .maybeSingle();
+    final rows = (await _keep('risk', () => _db.rpc('risk_areas'))).$1 as List;
+    final first =
+        (await _keep(
+              'riskSince',
+              () => _db
+                  .from('flood_events')
+                  .select('started_at')
+                  .order('started_at')
+                  .limit(1)
+                  .maybeSingle(),
+            )).$1
+            as Map<String, dynamic>?;
     final since = _ts(first?['started_at']);
     if (since != null) riskSince = '${months[since.month - 1]} ${since.year}';
     return [
@@ -396,11 +435,16 @@ class Api {
   ];
 
   static Future<Forecast?> forecast(String district) => _call(() async {
-    final r = await _db
-        .from('forecast_cache')
-        .select()
-        .eq('district', district)
-        .maybeSingle();
+    final r =
+        (await _keep(
+              'forecast.$district',
+              () => _db
+                  .from('forecast_cache')
+                  .select()
+                  .eq('district', district)
+                  .maybeSingle(),
+            )).$1
+            as Map<String, dynamic>?;
     if (r == null) return null;
     final j = r['forecast_json'] as Map<String, dynamic>;
     final now = DateTime.now().subtract(const Duration(hours: 3));
