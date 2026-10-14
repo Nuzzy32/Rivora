@@ -23,8 +23,8 @@ class _MapScreenState extends State<MapScreen>
     with SingleTickerProviderStateMixin {
   final _ctl = MapController();
   late final AnimationController _fly;
-  static bool _emptyClosed =
-      false; // ditutup sekali = tidak muncul lagi selama aplikasi dibuka
+  // Spanduk yang ditutup tidak muncul lagi selama aplikasi dibuka.
+  static bool _emptyClosed = false, _poskoClosed = false;
 
   @override
   void initState() {
@@ -427,6 +427,50 @@ class _MapScreenState extends State<MapScreen>
                             child: IconButton(
                               onPressed: () =>
                                   setState(() => _emptyClosed = true),
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                size: 20,
+                                color: C.muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (app.layers.contains('posko') &&
+                    !_poskoClosed &&
+                    !app.shelters.any((s) => s.type == 'posko')) ...[
+                  Appear(
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 4, 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: soft(.14, 18, 8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.night_shelter_rounded,
+                            size: 20,
+                            color: C.violetMid,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Belum ada posko aktif di sekitar sini. Posko dibuka BPBD saat ada kejadian.',
+                              style: t(13, FontWeight.w400, C.ink, 1.4),
+                            ),
+                          ),
+                          Semantics(
+                            button: true,
+                            label: 'Tutup pemberitahuan posko',
+                            child: IconButton(
+                              onPressed: () =>
+                                  setState(() => _poskoClosed = true),
                               icon: const Icon(
                                 Icons.close_rounded,
                                 size: 20,

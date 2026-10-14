@@ -1,0 +1,13 @@
+{
+  "name": "sigap-banjir-sql-tests",
+  "private": true,
+  "type": "module",
+  "description": "Tes migrasi Supabase di PGlite (Postgres + PostGIS dalam memori), tanpa Docker.",
+  "scripts": {
+    "test": "for t in *.test.mjs; do echo \"== $t\"; node $t || exit 1; done"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.9",
+    "@electric-sql/pglite-postgis": "0.2.9"
+  }
+}
