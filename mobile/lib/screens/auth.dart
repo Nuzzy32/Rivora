@@ -61,11 +61,13 @@ class _LoginScreenState extends State<LoginScreen> {
           ? await Api.register(_name.text.trim(), _mail.text.trim(), _pw.text)
           : await Api.login(_mail.text.trim(), _pw.text);
       if (u == null) {
-        // Proyek mewajibkan konfirmasi email sebelum bisa masuk.
+        // Konfirmasi email wajib. Supabase menjawab sama untuk email yang sudah terdaftar
+        // (tanpa mengirim apa pun) agar daftar akun tidak bisa ditebak, jadi pesannya mencakup keduanya.
         return setState(() {
           _register = false;
           _formErr =
-              'Akun dibuat. Buka link konfirmasi yang kami kirim ke ${_mail.text.trim()}, lalu masuk.';
+              'Cek email ${_mail.text.trim()} dan buka link konfirmasinya, lalu masuk. '
+              'Tidak ada email masuk? Mungkin email ini sudah terdaftar: masuk dengan kata sandi lama atau pakai "Lupa kata sandi?".';
         });
       }
       await app.signedIn(u, isNew: _register);
