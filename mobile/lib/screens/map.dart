@@ -23,6 +23,8 @@ class _MapScreenState extends State<MapScreen>
     with SingleTickerProviderStateMixin {
   final _ctl = MapController();
   late final AnimationController _fly;
+  static bool _emptyClosed =
+      false; // ditutup sekali = tidak muncul lagi selama aplikasi dibuka
 
   @override
   void initState() {
@@ -240,27 +242,6 @@ class _MapScreenState extends State<MapScreen>
           ),
         ),
 
-        if (empty)
-          Positioned(
-            left: 36,
-            right: 36,
-            top: top + 250,
-            child: Appear(
-              child: EmptyCard(
-                Icons.sentiment_satisfied_rounded,
-                'Belum ada laporan di area ini',
-                'Dalam radius 5 km belum ada genangan yang dilaporkan. Kalau kamu melihat genangan, bantu warga lain dengan melapor.',
-                iconColor: C.green,
-                action: Btn.violet(
-                  'Lapor genangan',
-                  height: 48,
-                  fontSize: 14,
-                  onTap: app.openReport,
-                ),
-              ),
-            ),
-          ),
-
         // Pencarian + notifikasi
         Positioned(
           top: top + 8,
@@ -399,6 +380,62 @@ class _MapScreenState extends State<MapScreen>
                       icon: Icons.cloud_off_rounded,
                       bg: C.ink,
                       fg: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (empty && !_emptyClosed) ...[
+                  Appear(
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 4, 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: soft(.14, 18, 8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.sentiment_satisfied_rounded,
+                            size: 20,
+                            color: C.green,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Belum ada genangan dilaporkan dalam 5 km.',
+                              style: t(13, FontWeight.w400, C.ink, 1.4),
+                            ),
+                          ),
+                          Tap(
+                            onTap: app.openReport,
+                            height: 44,
+                            radius: 12,
+                            color: C.violetTint,
+                            label: 'Lapor genangan',
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Center(
+                              child: Text(
+                                'Lapor',
+                                style: t(13, w6, C.violetInk),
+                              ),
+                            ),
+                          ),
+                          Semantics(
+                            button: true,
+                            label: 'Tutup pemberitahuan',
+                            child: IconButton(
+                              onPressed: () =>
+                                  setState(() => _emptyClosed = true),
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                size: 20,
+                                color: C.muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
