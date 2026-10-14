@@ -396,6 +396,10 @@ class AppState extends ChangeNotifier {
       );
       userPos = LatLng(pos.latitude, pos.longitude);
       _followGps();
+      // Data awal mungkin dimuat untuk posisi terakhir/bawaan; peta kini pindah ke GPS.
+      if (_pointsAt == null || meters(userPos!, _pointsAt!) > 4000) {
+        loadPoints(userPos!);
+      }
     } catch (_) {}
     notifyListeners();
   }
