@@ -995,31 +995,43 @@ class _PlaceSheetState extends State<_PlaceSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Simpan ${p.name} sebagai', style: t(17, w7)),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final l in const [
-                    'Rumah',
-                    'Kantor',
-                    'Kampus',
-                    'Sekolah',
-                    'Lainnya',
-                  ])
-                    Tap(
-                      onTap: () => Navigator.pop(ctx, l),
-                      height: 44,
-                      radius: 14,
-                      color: C.blueTint,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Center(
-                        child: Text(l, style: t(14, w6, C.blueInk)),
-                      ),
-                    ),
-                ],
+              Text('Simpan sebagai favorit', style: t(17, w7)),
+              const SizedBox(height: 2),
+              Text(
+                p.label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: t(13, FontWeight.w400, C.muted),
               ),
+              const SizedBox(height: 12),
+              for (final l in const [
+                'Rumah',
+                'Kantor',
+                'Kampus',
+                'Sekolah',
+                'Lainnya',
+              ])
+                Tap(
+                  onTap: () => Navigator.pop(ctx, l),
+                  height: 56,
+                  radius: 16,
+                  label: 'Simpan sebagai $l',
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    children: [
+                      IconTile(
+                        _tagIcon(l),
+                        C.blueTint,
+                        C.blueInk,
+                        size: 40,
+                        iconSize: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(l, style: t(15, w6))),
+                      const Icon(Icons.chevron_right_rounded, color: C.faint),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
@@ -1219,12 +1231,7 @@ class _PlaceSheetState extends State<_PlaceSheet> {
                             for (final p in app.favs)
                               _tile(
                                 p,
-                                icon: switch (p.tag) {
-                                  'Rumah' => Icons.home_rounded,
-                                  'Kantor' => Icons.work_rounded,
-                                  'Kampus' || 'Sekolah' => Icons.school_rounded,
-                                  _ => Icons.star_rounded,
-                                },
+                                icon: _tagIcon(p.tag),
                                 title: p.tag == null
                                     ? p.name
                                     : '${p.tag} · ${p.name}',
@@ -1253,3 +1260,11 @@ class _PlaceSheetState extends State<_PlaceSheet> {
     );
   }
 }
+
+IconData _tagIcon(String? tag) => switch (tag) {
+  'Rumah' => Icons.home_rounded,
+  'Kantor' => Icons.work_rounded,
+  'Kampus' => Icons.school_rounded,
+  'Sekolah' => Icons.backpack_rounded,
+  _ => Icons.star_rounded,
+};
