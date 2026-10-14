@@ -1137,6 +1137,7 @@ class _WatchScreenState extends State<WatchScreen> {
                             ),
                           ],
                         ),
+                        const MapCredit(compact: true),
                       ],
                     ),
                     const IgnorePointer(

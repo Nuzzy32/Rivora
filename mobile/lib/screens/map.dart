@@ -184,6 +184,10 @@ class _MapScreenState extends State<MapScreen>
                     ),
               ],
             ),
+            MapCredit(
+              align: Alignment.bottomLeft,
+              padding: EdgeInsets.only(left: 16, bottom: ctrlBottom),
+            ),
           ],
         ),
 
@@ -517,25 +521,6 @@ class _MapScreenState extends State<MapScreen>
               child: FadeTransition(opacity: a, child: child),
             ),
             child: app.legend ? const _Legend() : const SizedBox.shrink(),
-          ),
-        ),
-
-        Positioned(
-          left: 16,
-          bottom: ctrlBottom,
-          child: GestureDetector(
-            onTap: () => launchUrl(
-              Uri.parse('https://www.openstreetmap.org/copyright'),
-              mode: LaunchMode.externalApplication,
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .85),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(mapCredit, style: t(10, w5, C.sub)),
-            ),
           ),
         ),
 

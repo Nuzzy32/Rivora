@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'motion.dart';
 
@@ -759,6 +760,75 @@ Widget baseTiles(BuildContext c) => _mapboxToken.isEmpty
         maxNativeZoom: 21,
         userAgentPackageName: 'com.rivora.sigap_banjir',
       );
-const mapCredit = _mapboxToken == ''
-    ? '© OpenStreetMap contributors'
-    : '© Mapbox · © OpenStreetMap';
+
+/// Atribusi peta (wajib), dipasang sebagai child `FlutterMap` supaya "Improve this map" membawa
+/// posisi & zoom saat ini. Mapbox mensyaratkan logo + © Mapbox + © OpenStreetMap + Improve this map.
+/// Logo resmi: assets/brand/mapbox-logo.png (dari brand guidelines Mapbox); belum ada = tidak tampil.
+class MapCredit extends StatelessWidget {
+  final Alignment align;
+  final EdgeInsets padding;
+  final bool compact;
+  const MapCredit({
+    super.key,
+    this.align = Alignment.bottomRight,
+    this.padding = const EdgeInsets.all(6),
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final size = compact ? 9.0 : 10.0;
+    Widget link(String text, String Function() url) => GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () =>
+          launchUrl(Uri.parse(url()), mode: LaunchMode.externalApplication),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Text(text, style: t(size, w5, C.sub)),
+      ),
+    );
+    String osm() => 'https://www.openstreetmap.org/copyright';
+    String feedback() {
+      final c = MapCamera.of(context);
+      return 'https://apps.mapbox.com/feedback/#/${c.center.longitude.toStringAsFixed(5)}/${c.center.latitude.toStringAsFixed(5)}/${c.zoom.round()}';
+    }
+
+    return Align(
+      alignment: align,
+      child: Padding(
+        padding: padding,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .88),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: _mapboxToken.isEmpty
+              ? link('© OpenStreetMap contributors', osm)
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Image.asset(
+                      'assets/brand/mapbox-logo.png',
+                      height: compact ? 16 : 20,
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        link(
+                          '© Mapbox',
+                          () => 'https://www.mapbox.com/about/maps/',
+                        ),
+                        link('© OpenStreetMap', osm),
+                        link('Improve this map', feedback),
+                      ],
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}

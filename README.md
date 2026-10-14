@@ -89,7 +89,7 @@ web/                    Panel web Verifikator & Admin (Vite + React + Leaflet)
 supabase/
   migrations/           Skema, RLS, trigger, RPC, storage, jadwal cron
   functions/            Edge Function bmkg-forecast
-  seed.sql              Data awal Surabaya (contoh)
+  seed.sql              Faskes & kontak darurat awal
 docs/screenshots/
 ```
 
@@ -165,7 +165,7 @@ Tes membuka semua layar beserta transisinya di layar 402 dp dan 360 dp dengan uk
 - Prakiraan cuaca: **BMKG** (`api.bmkg.go.id`). Sumbernya dicantumkan di setiap tampilan prakiraan.
 - Peta: **© OpenStreetMap contributors**.
 - Radar hujan: **Rain Viewer**, untuk penggunaan non-komersial.
-- Titik genangan, posko, dan nomor kontak di `seed.sql` adalah contoh. Cek ke sumber resmi sebelum rilis.
+- `seed.sql` hanya berisi faskes dan kontak darurat. Titik genangan berasal dari laporan warga atau status Resmi, posko diisi Admin dari data BPBD lewat panel. Cek alamat dan nomor ke sumber resmi sebelum rilis.
 
 ## Latar belakang
 

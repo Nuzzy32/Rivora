@@ -187,7 +187,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     }
                   },
                 ),
-                children: [baseTiles(context)],
+                children: [baseTiles(context), const MapCredit(compact: true)],
               ),
               const IgnorePointer(
                 child: Center(
@@ -235,11 +235,6 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                right: 8,
-                bottom: 6,
-                child: Text(mapCredit, style: t(9, w5, C.sub)),
               ),
             ],
           ),
