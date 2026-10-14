@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/logo.png" width="150" alt="Logo SIGAP Banjir" />
+
 # SIGAP Banjir
 
 **Status genangan per lokasi untuk warga di seluruh Indonesia.**
@@ -14,9 +16,9 @@ Tinggi air, waktu pembaruan, dan sumbernya, supaya warga bisa memutuskan rute at
 <br>
 
 <img src="docs/screenshots/onboarding.jpg" width="200" alt="Onboarding" />&nbsp;
-<img src="docs/screenshots/peta.jpg" width="200" alt="Peta genangan" />&nbsp;
-<img src="docs/screenshots/detail-lokasi.jpg" width="200" alt="Detail lokasi" />&nbsp;
-<img src="docs/screenshots/prakiraan.jpg" width="200" alt="Prakiraan BMKG" />
+<img src="docs/screenshots/peta.jpg" width="200" alt="Peta genangan dengan lapisan faskes" />&nbsp;
+<img src="docs/screenshots/prakiraan.jpg" width="200" alt="Prakiraan BMKG per desa" />&nbsp;
+<img src="docs/screenshots/darurat.jpg" width="200" alt="Darurat: 112, BPBD setempat, kontak nasional" />
 
 </div>
 
@@ -93,7 +95,7 @@ mobile/                 Aplikasi Flutter
   lib/screens/          14 layar: peta, prakiraan, lapor, akun, darurat, …
   assets/guide.json     Panduan siaga (offline)
   map-style/            Gaya peta "SIGAP Banjir Light" untuk Mapbox Studio + pembangunnya
-  branding/icon.svg     Sumber ikon aplikasi
+  branding/             Logo resmi (lengkap & tanda) sumber ikon, splash, dan aset web
 web/                    Panel web Verifikator & Admin (Vite + React + Leaflet)
   src/pages/            Dasbor, antrean, status lokasi, posko/kontak, pengguna
   public/privasi.html   Kebijakan privasi (publik, tanpa login)
