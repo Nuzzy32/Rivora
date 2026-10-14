@@ -206,7 +206,7 @@ where shelters.address = '' and r.code = shelters.adm4;
 -- Tanpa desa dalam 50 km (mis. sekitar Fakfak): pakai kab/kota terdekat.
 update public.shelters s set address = 'Sekitar ' || (
   select r.label from public.regions r where r.level = 2 and r.location is not null
-  order by r.location <-> s.location limit 1)
+  order by r.location operator(extensions.<->) s.location limit 1)
 where s.address = '';
 
 -- Untuk pencarian faskes terdekat.
