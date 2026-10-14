@@ -56,8 +56,8 @@ function Login({ err, setErr }) {
     setBusy(true); setErr(null)
     const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: pw })
     setBusy(false)
-    if (error) setErr(/invalid/i.test(error.message) ? 'Email atau kata sandi salah.'
-      : /confirm/i.test(error.message) ? 'Email belum dikonfirmasi. Cek kotak masuk.' : errMsg(error))
+    if (error) setErr(error.code === 'invalid_credentials' ? 'Email atau kata sandi salah.'
+      : error.code === 'email_not_confirmed' ? 'Email belum dikonfirmasi. Cek kotak masuk.' : errMsg(error))
   }
   return (
     <div className="login">
