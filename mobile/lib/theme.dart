@@ -784,56 +784,97 @@ class MapCredit extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = compact ? 9.0 : 10.0;
-    Widget link(String text, String Function() url) => GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () =>
-          launchUrl(Uri.parse(url()), mode: LaunchMode.externalApplication),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Text(text, style: t(size, w5, C.sub)),
+    void open(String url) =>
+        launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    const osm = 'https://www.openstreetmap.org/copyright';
+    if (_mapboxToken.isEmpty) {
+      return Align(
+        alignment: align,
+        child: Padding(
+          padding: padding,
+          child: GestureDetector(
+            onTap: () => open(osm),
+            child: Text('© OpenStreetMap', style: t(9, w5, C.sub)),
+          ),
+        ),
+      );
+    }
+    // Ringkas seperti SDK Mapbox: logo/© Mapbox + tombol (i) yang membuka atribusi lengkap.
+    final cam = MapCamera.of(context);
+    final feedback =
+        'https://apps.mapbox.com/feedback/#/${cam.center.longitude.toStringAsFixed(5)}/${cam.center.latitude.toStringAsFixed(5)}/${cam.zoom.round()}';
+    void sheet() => showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Sumber peta', style: t(17, w7)),
+              const SizedBox(height: 6),
+              for (final (label, url) in [
+                ('© Mapbox', 'https://www.mapbox.com/about/maps/'),
+                ('© OpenStreetMap contributors', osm),
+                ('Improve this map', feedback),
+              ])
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(label, style: t(14, w6, C.blueInk)),
+                  trailing: const Icon(
+                    Icons.open_in_new_rounded,
+                    size: 18,
+                    color: C.muted,
+                  ),
+                  onTap: () => open(url),
+                ),
+            ],
+          ),
+        ),
       ),
     );
-    String osm() => 'https://www.openstreetmap.org/copyright';
-    String feedback() {
-      final c = MapCamera.of(context);
-      return 'https://apps.mapbox.com/feedback/#/${c.center.longitude.toStringAsFixed(5)}/${c.center.latitude.toStringAsFixed(5)}/${c.zoom.round()}';
-    }
-
     return Align(
       alignment: align,
       child: Padding(
         padding: padding,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .88),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: _mapboxToken.isEmpty
-              ? link('© OpenStreetMap contributors', osm)
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Image.asset(
-                      'assets/brand/mapbox-logo.png',
-                      height: compact ? 16 : 20,
-                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        link(
-                          '© Mapbox',
-                          () => 'https://www.mapbox.com/about/maps/',
-                        ),
-                        link('© OpenStreetMap', osm),
-                        link('Improve this map', feedback),
-                      ],
-                    ),
-                  ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: () => open('https://www.mapbox.com/about/maps/'),
+              child: Image.asset(
+                'assets/brand/mapbox-logo.png',
+                height: compact ? 14 : 18,
+                errorBuilder: (_, _, _) => Text(
+                  '© Mapbox',
+                  style: t(compact ? 9 : 10, w6, C.sub).copyWith(
+                    shadows: const [Shadow(color: Colors.white, blurRadius: 4)],
+                  ),
                 ),
+              ),
+            ),
+            Semantics(
+              button: true,
+              label: 'Info sumber peta',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: sheet,
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: C.sub,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
