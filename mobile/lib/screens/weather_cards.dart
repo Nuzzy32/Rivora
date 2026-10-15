@@ -170,7 +170,8 @@ class HourlyCard extends StatelessWidget {
       if (i + 1 < f.slots.length) {
         final a = f.local(s.time), b = f.local(f.slots[i + 1].time);
         for (final ev in sunEvents) {
-          final at = DateTime(
+          // f.local() memberi jam lokasi bertanda UTC; bandingkan dengan jenis yang sama.
+          final at = DateTime.utc(
             today.year,
             today.month,
             today.day,
