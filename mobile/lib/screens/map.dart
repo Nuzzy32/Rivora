@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -26,6 +27,7 @@ class _MapScreenState extends State<MapScreen>
   late final AnimationController _fly;
   // Spanduk yang ditutup tidak muncul lagi selama aplikasi dibuka.
   static bool _emptyClosed = false, _poskoClosed = false;
+  Timer? _emptyTimer; // pil "belum ada genangan" hilang sendiri setelah dibaca
 
   @override
   void initState() {
@@ -38,6 +40,7 @@ class _MapScreenState extends State<MapScreen>
 
   @override
   void dispose() {
+    _emptyTimer?.cancel();
     _fly.dispose();
     super.dispose();
   }
@@ -91,6 +94,11 @@ class _MapScreenState extends State<MapScreen>
             ? 140.0
             : 104.0);
     final empty = flood && app.nearby.isEmpty;
+    if (empty && !_emptyClosed) {
+      _emptyTimer ??= Timer(const Duration(seconds: 6), () {
+        if (mounted) setState(() => _emptyClosed = true);
+      });
+    }
     if (app.userPos != null && !app.centeredOnUser) {
       app.centeredOnUser = true;
       WidgetsBinding.instance.addPostFrameCallback(
@@ -317,13 +325,13 @@ class _MapScreenState extends State<MapScreen>
 
         // Chip lapisan
         Positioned(
-          top: top + 68,
+          top: top + 66,
           left: 0,
           right: 0,
-          height: 60,
+          height: 50,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
             children: [
               for (final (k, label, icon) in const [
                 ('flood', 'Genangan', Icons.water_rounded),
@@ -334,25 +342,39 @@ class _MapScreenState extends State<MapScreen>
               ])
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
+                  // Pil ringan: aktif = biru muda + ikon centang, bukan blok biru pekat.
                   child: Semantics(
                     toggled: app.layers.contains(k),
                     child: Tap(
                       onTap: () => app.toggleLayer(k),
-                      height: 48,
-                      radius: 15,
-                      color: app.layers.contains(k) ? C.blueInk : Colors.white,
-                      shadow: soft(.14, 18, 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      height: 40,
+                      radius: 20,
+                      color: app.layers.contains(k)
+                          ? C.blueTint
+                          : Colors.white.withValues(alpha: .94),
+                      border: Border.all(
+                        color: app.layers.contains(k)
+                            ? C.blue.withValues(alpha: .55)
+                            : Colors.white,
+                      ),
+                      shadow: soft(.10, 14, 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 13),
                       child: TweenAnimationBuilder<Color?>(
                         tween: ColorTween(
-                          end: app.layers.contains(k) ? Colors.white : C.ink,
+                          end: app.layers.contains(k) ? C.blueInk : C.body,
                         ),
                         duration: dur(context, 200),
                         builder: (context, c, _) => Row(
                           children: [
-                            Icon(icon, size: 18, color: c),
-                            const SizedBox(width: 6),
-                            Text(label, style: t(13, w5, c!)),
+                            Icon(
+                              app.layers.contains(k)
+                                  ? Icons.check_rounded
+                                  : icon,
+                              size: 16,
+                              color: c,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(label, style: t(13, w6, c!)),
                           ],
                         ),
                       ),
@@ -364,7 +386,7 @@ class _MapScreenState extends State<MapScreen>
         ),
 
         Positioned(
-          top: top + 126,
+          top: top + 114,
           left: 16,
           right: 16,
           child: AnimatedSize(
@@ -429,56 +451,39 @@ class _MapScreenState extends State<MapScreen>
                   const SizedBox(height: 8),
                 ],
                 if (empty && !_emptyClosed) ...[
-                  Appear(
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(14, 6, 4, 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: soft(.14, 18, 8),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.sentiment_satisfied_rounded,
-                            size: 20,
-                            color: C.green,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Belum ada genangan dilaporkan dalam 5 km.',
-                              style: t(13, FontWeight.w400, C.ink, 1.4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Appear(
+                      child: Tap(
+                        onTap: app.openReport,
+                        height: 36,
+                        radius: 18,
+                        color: Colors.white.withValues(alpha: .94),
+                        shadow: soft(.10, 14, 6),
+                        label:
+                            'Belum ada genangan dalam 5 km. Ketuk untuk melapor.',
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              size: 16,
+                              color: C.green,
                             ),
-                          ),
-                          Tap(
-                            onTap: app.openReport,
-                            height: 44,
-                            radius: 12,
-                            color: C.violetTint,
-                            label: 'Lapor genangan',
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Center(
+                            const SizedBox(width: 6),
+                            Flexible(
                               child: Text(
-                                'Lapor',
-                                style: t(13, w6, C.violetInk),
+                                'Belum ada genangan dalam 5 km',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: t(12, w5, C.ink),
                               ),
                             ),
-                          ),
-                          Semantics(
-                            button: true,
-                            label: 'Tutup pemberitahuan',
-                            child: IconButton(
-                              onPressed: () =>
-                                  setState(() => _emptyClosed = true),
-                              icon: const Icon(
-                                Icons.close_rounded,
-                                size: 20,
-                                color: C.muted,
-                              ),
-                            ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text('Lapor', style: t(12, w6, C.violetInk)),
+                          ],
+                        ),
                       ),
                     ),
                   ),
