@@ -293,11 +293,12 @@ class TabBar5 extends StatelessWidget {
   Widget build(BuildContext context) {
     final tab = tabOf[app.screen];
     final items = [
-      (Icons.map_outlined, 'Peta', C.blue, () => app.go(Scr.map)),
-      (Icons.cloud_outlined, 'Prakiraan', C.blue, () => app.go(Scr.forecast)),
-      (Icons.add_rounded, 'Lapor', C.violet, app.openReport),
-      (Icons.person_outline_rounded, 'Akun', C.blue, () => app.go(Scr.account)),
-      (Icons.sos_rounded, 'Darurat', C.red, () => app.go(Scr.emergency)),
+      // Ikon 3D buatan sendiri (assets/nav); warna = tint lingkaran tab aktif.
+      ('peta', 'Peta', C.blue, () => app.go(Scr.map)),
+      ('cuaca', 'Prakiraan', C.blue, () => app.go(Scr.forecast)),
+      ('lapor', 'Lapor', C.violet, app.openReport),
+      ('akun', 'Akun', C.blue, () => app.go(Scr.account)),
+      ('sos', 'Darurat', C.red, () => app.go(Scr.emergency)),
     ];
     const r = BorderRadius.all(Radius.circular(tabBarH / 2));
     // Kaca cair: isi di belakang di-blur, lapisan putih bening, bingkai tipis, dan kilau di tepi atas.
@@ -391,11 +392,9 @@ class TabBar5 extends StatelessWidget {
       child: Container(
         width: _report,
         height: _report,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          gradient: gViolet,
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
               color: Color(0x73806EF8),
               blurRadius: 18,
@@ -403,7 +402,11 @@ class TabBar5 extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(Icons.add_rounded, size: 30, color: Colors.white),
+        child: Image.asset(
+          'assets/nav/lapor.png',
+          width: _report,
+          height: _report,
+        ),
       ),
     ),
   );
@@ -411,14 +414,12 @@ class TabBar5 extends StatelessWidget {
   Widget _tabItem(
     BuildContext context,
     bool on,
-    IconData icon,
+    String icon,
     String label,
     Color color,
     VoidCallback onTap,
     double pill,
   ) {
-    // Ikon tab biasa gelap; Lapor & Darurat tetap berwarna supaya menonjol.
-    final idle = color == C.blue ? C.ink : color;
     return Semantics(
       selected: on,
       child: Tap(
@@ -445,11 +446,19 @@ class TabBar5 extends StatelessWidget {
                   duration: dur(context, 260),
                   width: _d - 8,
                   height: _d - 8,
+                  padding: EdgeInsets.all(on ? 3 : 5),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: on ? color : Colors.white.withValues(alpha: 0),
+                    color: on
+                        ? color.withValues(alpha: .16)
+                        : Colors.white.withValues(alpha: 0),
                   ),
-                  child: Icon(icon, size: 22, color: on ? Colors.white : idle),
+                  child: AnimatedScale(
+                    duration: dur(context, 260),
+                    curve: easeOut,
+                    scale: on ? 1.08 : 1,
+                    child: Image.asset('assets/nav/$icon.png'),
+                  ),
                 ),
                 // Label diukur pada lebar akhir pil, lalu tersingkap saat pil melebar.
                 Expanded(

@@ -75,6 +75,7 @@ flutter:
     - assets/guide.json
     - assets/lottie/
     - assets/brand/
+    - assets/nav/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

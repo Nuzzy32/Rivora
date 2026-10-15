@@ -72,7 +72,7 @@ class _MapScreenState extends State<MapScreen>
   Future<void> _locateMe() async {
     if (app.locDenied) return app.showToast('Izin lokasi belum aktif');
     await app.locate();
-    _flyTo(app.center, 15);
+    if (mounted) _flyTo(app.center, 15); // layar bisa sudah ditutup saat GPS selesai
     app.showToast(
       app.userPos == null
           ? 'Lokasi belum bisa dibaca. Coba lagi di tempat terbuka.'
