@@ -3,15 +3,14 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 
 import 'package:flutter/material.dart';
 
-import '../art.dart';
 import '../data.dart';
 import '../motion.dart';
 import '../state.dart';
 import '../theme.dart';
+import 'weather_cards.dart';
 
 /// Latar mengikuti suasana slot terpilih (dekoratif; berpindah pelan).
 /// Hujan: langit gelap berawan (badai paling gelap), kartu kaca tetap terbaca dengan teks putih.
@@ -33,39 +32,6 @@ List<Color> _mood(String kind) => switch (kind) {
   _ => const [Color(0xFF9FC3FF), C.blue, Color(0xFF6C86F6)],
 };
 
-/// Kartu kaca kartu cuaca utama (kartu info di bawahnya tetap putih solid).
-class _Glass extends StatelessWidget {
-  final Widget child;
-  final double radius;
-  final EdgeInsets padding;
-  final bool shadow;
-  const _Glass({
-    required this.child,
-    this.radius = 24,
-    this.padding = const EdgeInsets.all(16),
-    this.shadow = false,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: padding,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.white.withValues(alpha: .42),
-          Colors.white.withValues(alpha: .12),
-        ],
-      ),
-      border: Border.all(color: Colors.white.withValues(alpha: .55)),
-      boxShadow: shadow ? soft(.25, 40, 24, const Color(0xFF325AC8)) : null,
-    ),
-    child: child,
-  );
-}
-
 /// M08: prakiraan BMKG per 3 jam untuk kecamatan terpilih.
 class ForecastScreen extends StatefulWidget {
   const ForecastScreen({super.key});
@@ -75,45 +41,26 @@ class ForecastScreen extends StatefulWidget {
 }
 
 class _ForecastScreenState extends State<ForecastScreen> {
-  final _chips = ScrollController();
-  int _dir = 1; // arah geser isi kartu: 1 = slot ke kanan, -1 = ke kiri
+  final _sc = ScrollController();
 
   @override
   void dispose() {
-    _chips.dispose();
+    _sc.dispose();
     super.dispose();
   }
 
-  void _select(int i) {
-    if (i == app.fcSlot) return;
-    _dir = i > app.fcSlot ? 1 : -1;
-    HapticFeedback.selectionClick();
-    app.set(() => app.fcSlot = i);
-    // Bawa chip terpilih ke tengah layar.
-    if (_chips.hasClients) {
-      final target =
-          i * 76.0 - (MediaQuery.sizeOf(context).width - 66) / 2 + 20;
-      _chips.animateTo(
-        target.clamp(0, _chips.position.maxScrollExtent),
-        duration: dur(context, 380),
-        curve: easeOut,
-      );
-    }
-  }
+  // Header ikut membesar bila ukuran huruf sistem diperbesar.
+  double get _heroMax =>
+      280 + (MediaQuery.textScalerOf(context).scale(10) / 10 - 1) * 320;
+  double get _heroMin =>
+      96 + (MediaQuery.textScalerOf(context).scale(10) / 10 - 1) * 60;
 
   @override
   Widget build(BuildContext context) {
     final f = app.forecast;
     final loading = app.fcLoading || f == null || f.slots.isEmpty;
-    final cur = loading
-        ? null
-        : f.slots[app.fcSlot.clamp(0, f.slots.length - 1)];
-    final now = DateTime.now();
-    final src = f == null
-        ? 'Sumber: BMKG'
-        : 'Sumber: BMKG · ${app.fcStale ? 'data tersimpan' : 'diambil'} ${f.at(f.fetchedAt)} ${f.zone}';
-    final place = app.fcPlace;
-    final key = '${place?.adm4}-${app.fcSlot}';
+    final cur = loading ? null : f.slots.first;
+    final top = topInset(context);
     return AnimatedContainer(
       duration: dur(context, 700),
       curve: easeOut,
@@ -127,7 +74,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
       ),
       child: Stack(
         children: [
-          // Langit bergerak sesuai cuaca slot terpilih (matahari, awan, bintang, hujan, kilat).
+          // Langit bergerak sesuai cuaca sekarang (matahari, awan, bintang, hujan, kilat).
           Positioned.fill(
             child: IgnorePointer(
               child: AnimatedSwitcher(
@@ -138,229 +85,342 @@ class _ForecastScreenState extends State<ForecastScreen> {
               ),
             ),
           ),
-          // Isi bergulir di bawah status bar (terpotong di sana), langit tetap tampil di belakangnya.
-          Padding(
-            padding: EdgeInsets.only(top: topInset(context)),
+          // Kartu bergulir di bawah header dan terpotong tepat di tepi bawahnya (gaya Cuaca iPhone).
+          AnimatedBuilder(
+            animation: _sc,
+            builder: (context, child) {
+              final o = _sc.hasClients ? _sc.offset : 0.0;
+              final h = top + math.max(_heroMin, _heroMax - o);
+              return ClipRect(clipper: _Below(h), child: child);
+            },
             child: ListView(
-              padding: const EdgeInsets.only(top: 12),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Prakiraan', style: t(24, w7, Colors.white)),
-                            Text(
-                              '${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]} · per 3 jam',
-                              style: t(13, w5, Colors.white),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Tap(
-                        onTap: () => _pickPlace(context),
-                        height: 48,
-                        radius: 15,
-                        color: Colors.white.withValues(alpha: .22),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: .55),
-                        ),
-                        padding: const EdgeInsets.fromLTRB(14, 0, 10, 0),
-                        label: 'Pilih lokasi prakiraan',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              app.fcAuto && place != null
-                                  ? Icons.near_me_rounded
-                                  : Icons.location_on_outlined,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 4),
-                            AnimatedSwitcher(
-                              duration: dur(context, 260),
-                              transitionBuilder: materialize(
-                                from: const Offset(0, 6),
-                              ),
-                              child: ConstrainedBox(
-                                key: ValueKey('${place?.adm4}${place?.tag}'),
-                                constraints: const BoxConstraints(
-                                  maxWidth: 140,
-                                ),
-                                child: Text(
-                                  place?.tag ?? place?.name ?? 'Pilih lokasi',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: t(13, w6, Colors.white),
-                                ),
-                              ),
-                            ),
-                            const Icon(
-                              Icons.expand_more_rounded,
-                              size: 20,
-                              color: Colors.white,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  height: 130,
-                  child: ListView(
-                    key: ValueKey(
-                      place?.adm4,
-                    ), // ganti lokasi → chip masuk ulang bertahap
-                    controller: _chips,
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
-                    children: [
-                      for (final (i, s)
-                          in (loading ? const <Slot>[] : f.slots).indexed)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: Appear(
-                            index: i,
-                            dy: 14,
-                            child: _SlotChip(
-                              s,
-                              time: f!.at(s.time),
-                              selected: i == app.fcSlot,
-                              onTap: () => _select(i),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _Glass(
-                    radius: 34,
-                    padding: const EdgeInsets.all(22),
-                    shadow: true,
-                    child: AnimatedSwitcher(
-                      duration: dur(context, 360),
-                      transitionBuilder: materialize(),
-                      child: cur == null ? _loadingCard() : _card(f!, cur, key),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 22),
-                // Langit menerus sampai bawah; kartu info tetap putih solid supaya mudah dibaca.
-                Padding(
-                  padding: EdgeInsets.fromLTRB(20, 0, 20, tabSpace(context)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (app.fcStale) ...[
-                        Appear(
-                          child: Note(
-                            'Gagal memuat data terbaru. Menampilkan prakiraan tersimpan pukul ${f!.at(f.fetchedAt)} ${f.zone}.',
-                            icon: Icons.cloud_off_rounded,
-                            bg: C.ink,
-                            fg: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      if (f?.warning != null && !app.fcStale) ...[
-                        Appear(
-                          child: Box(
-                            radius: 22,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const IconTile(
-                                  Icons.thunderstorm_rounded,
-                                  C.violet,
-                                  Colors.white,
-                                  gradient: gViolet,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Peringatan dini BMKG',
-                                        style: t(14, w6),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        f!.warning!,
-                                        style: t(
-                                          13,
-                                          FontWeight.w400,
-                                          C.body,
-                                          1.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      Appear(
-                        index: 1,
-                        child: Box(
-                          radius: 22,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.shield_rounded,
-                                    size: 20,
-                                    color: C.violetMid,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(child: Text(src, style: t(13, w6))),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Prakiraan ini bukan prediksi banjir. Untuk kondisi jalan saat ini, lihat laporan di Peta.',
-                                style: t(13, FontWeight.w400, C.body, 1.55),
-                              ),
-                              const SizedBox(height: 12),
-                              Btn(
-                                'Cek genangan di Peta',
-                                icon: Icons.map_outlined,
-                                height: 48,
-                                radius: 16,
-                                fontSize: 14,
-                                color: C.blueTint,
-                                fg: C.blueMid,
-                                onTap: () => app.go(Scr.map),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              controller: _sc,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                top + _heroMax,
+                16,
+                tabSpace(context),
+              ),
+              children: loading ? [_loadingCard()] : _cards(f, cur!),
             ),
+          ),
+          // Header: menyusut dari besar ke satu baris saat digulir; seret header ikut menggulir.
+          AnimatedBuilder(
+            animation: _sc,
+            builder: (context, _) {
+              final o = _sc.hasClients ? _sc.offset : 0.0;
+              final p = (o / (_heroMax - _heroMin)).clamp(0.0, 1.0);
+              return Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: top + math.max(_heroMin, _heroMax - o),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onVerticalDragUpdate: (d) {
+                    if (!_sc.hasClients) return;
+                    _sc.jumpTo(
+                      (_sc.offset - d.delta.dy).clamp(
+                        0,
+                        _sc.position.maxScrollExtent,
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.only(top: top + 6),
+                    child: _hero(f, cur, p),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
     );
+  }
+
+  /// Tertinggi/terendah hari ini dari slot BMKG hari ini (cadangan: Open-Meteo).
+  ({int hi, int lo})? _range(Forecast f) {
+    final today = f.local(DateTime.now()).day;
+    final t = [
+      for (final s in f.slots)
+        if (f.local(s.time).day == today) s.temp,
+    ];
+    final d0 = f.extra?.days.firstOrNull;
+    if (d0 != null) t.addAll([d0.tmin, d0.tmax]);
+    return t.isEmpty ? null : (hi: t.reduce(math.max), lo: t.reduce(math.min));
+  }
+
+  Widget _hero(Forecast? f, Slot? cur, double p) {
+    final place = app.fcPlace;
+    final caption = place == null
+        ? 'PRAKIRAAN BMKG'
+        : app.fcAuto
+        ? 'LOKASIKU'
+        : (place.tag ?? 'Lokasi pilihan').toUpperCase();
+    final full = 1 - (p / .55).clamp(0.0, 1.0);
+    final mini = ((p - .6) / .4).clamp(0.0, 1.0);
+    final r = f == null ? null : _range(f);
+    final shadow = [
+      Shadow(color: Colors.black.withValues(alpha: .18), blurRadius: 12),
+    ];
+    TextStyle s(double size, FontWeight w) =>
+        t(size, w, Colors.white, 1.1).copyWith(shadows: shadow);
+    // Isi melebihi tinggi header saat menyusut: dipotong, bukan meluap.
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          Semantics(
+            button: true,
+            label: 'Pilih lokasi prakiraan',
+            child: GestureDetector(
+              onTap: () => _pickPlace(context),
+              child: Column(
+                children: [
+                  Opacity(
+                    opacity: full,
+                    child: Text(
+                      caption,
+                      style: s(13, w6).copyWith(letterSpacing: .6),
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          place?.name ?? 'Pilih lokasi',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: s(lerpDouble(34, 26, p)!, FontWeight.w500),
+                        ),
+                      ),
+                      Icon(
+                        Icons.expand_more_rounded,
+                        color: Colors.white.withValues(alpha: .85),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (cur != null && full > 0)
+            Opacity(
+              opacity: full,
+              child: Column(
+                children: [
+                  Text(
+                    '${cur.temp}°',
+                    style: s(96, FontWeight.w300).copyWith(height: 1.05),
+                  ),
+                  Text(cur.desc, style: s(20, FontWeight.w500)),
+                  if (r != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'T: ${r.hi}°   R: ${r.lo}°',
+                        style: s(18, FontWeight.w500),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          if (cur != null && mini > 0)
+            Opacity(
+              opacity: mini,
+              child: Text(
+                '${cur.temp}°  |  ${cur.desc}',
+                style: s(
+                  18,
+                  FontWeight.w500,
+                ).copyWith(color: Colors.white.withValues(alpha: .85)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _cards(Forecast f, Slot cur) {
+    final e = f.extra;
+    final rain24 = f.slots.take(8).fold(0.0, (a, s) => a + s.rainMm);
+    String mm(double v) =>
+        '${v.toStringAsFixed(v < 10 ? 1 : 0).replaceAll('.', ',')} mm';
+    final range = _range(f);
+    const om = 'Sumber: Open-Meteo';
+    final gap = const SizedBox(height: 12);
+    return [
+      if (app.fcStale) ...[
+        Note(
+          'Gagal memuat data terbaru. Menampilkan prakiraan tersimpan pukul ${f.at(f.fetchedAt)} ${f.zone}.',
+          icon: Icons.cloud_off_rounded,
+          bg: C.ink,
+          fg: Colors.white,
+        ),
+        gap,
+      ],
+      if (f.warning != null && !app.fcStale) ...[
+        WxCard(
+          icon: Icons.warning_amber_rounded,
+          label: 'Peringatan dini BMKG',
+          child: Text(f.warning!, style: t(14, w5, Colors.white, 1.45)),
+        ),
+        gap,
+      ],
+      HourlyCard(f),
+      gap,
+      if (e != null && e.days.isNotEmpty) ...[
+        DailyCard(e.days, nowTemp: cur.temp),
+        gap,
+      ],
+      wxPair(
+        WxTile(
+          icon: Icons.water_drop_rounded,
+          label: 'Curah hujan',
+          value: mm(rain24),
+          sub: '24 jam ke depan',
+          note: rain24 < .5
+              ? 'Tidak diperkirakan hujan berarti.'
+              : f.rainLine ?? 'Waspadai genangan di titik rawan.',
+        ),
+        WxTile(
+          icon: Icons.thermostat_rounded,
+          label: 'Terasa seperti',
+          value: '${cur.feels}°',
+          note: feelsNote(cur.feels, cur.temp),
+        ),
+      ),
+      gap,
+      if (e?.uv != null || e?.sunrise != null) ...[
+        wxPair(
+          e?.uv == null
+              ? null
+              : WxTile(
+                  icon: Icons.wb_sunny_rounded,
+                  label: 'Indeks UV',
+                  value: '${e!.uv}',
+                  sub: uvLevel(e.uv!).level,
+                  art: UvBar(e.uv!),
+                  note: uvLevel(e.uv!).note,
+                  source: om,
+                ),
+          e?.sunrise == null || e?.sunset == null
+              ? null
+              : SunCard(e!.sunrise!, e.sunset!, f.local(DateTime.now())),
+        ),
+        gap,
+      ],
+      if (cur.windDir != null) ...[WindCard(cur), gap],
+      wxPair(
+        WxTile(
+          icon: Icons.water_rounded,
+          label: 'Kelembapan',
+          value: '${cur.hum}%',
+          note: 'Titik embun ${dewPoint(cur.temp, cur.hum)}° saat ini.',
+        ),
+        e?.visibilityM == null
+            ? null
+            : WxTile(
+                icon: Icons.visibility_rounded,
+                label: 'Jarak pandang',
+                value: '${(e!.visibilityM! / 1000).round()} km',
+                note: e.visibilityM! >= 10000
+                    ? 'Pandangan sangat jelas.'
+                    : e.visibilityM! >= 4000
+                    ? 'Pandangan cukup jelas.'
+                    : 'Pandangan terbatas, hati-hati berkendara.',
+                source: om,
+              ),
+      ),
+      gap,
+      wxPair(
+        e?.pressure == null
+            ? null
+            : WxTile(
+                icon: Icons.speed_rounded,
+                label: 'Tekanan udara',
+                value: '${e!.pressure}',
+                sub: 'hPa',
+                art: PressureArt(e.pressure!),
+                source: om,
+              ),
+        e?.avgHigh == null || range == null
+            ? null
+            : WxTile(
+                icon: Icons.show_chart_rounded,
+                label: 'Rata-rata',
+                value:
+                    '${range.hi - e!.avgHigh! >= 0 ? '+' : ''}${range.hi - e.avgHigh!}°',
+                sub: range.hi > e.avgHigh!
+                    ? 'di atas rata-rata'
+                    : range.hi < e.avgHigh!
+                    ? 'di bawah rata-rata'
+                    : 'sama dengan rata-rata',
+                note:
+                    'Hari ini T: ${range.hi}°\nRata-rata 10 thn T: ${e.avgHigh}°',
+                source: om,
+              ),
+      ),
+      gap,
+      if (cur.cloud != null) ...[
+        wxPair(
+          WxTile(
+            icon: Icons.cloud_rounded,
+            label: 'Tutupan awan',
+            value: '${cur.cloud}%',
+            note: cur.cloud! >= 75
+                ? 'Langit tertutup awan.'
+                : cur.cloud! >= 40
+                ? 'Berawan sebagian.'
+                : 'Langit cenderung cerah.',
+          ),
+          null,
+        ),
+        gap,
+      ],
+      MoonCard(DateTime.now()),
+      gap,
+      Box(
+        radius: 22,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.shield_rounded, size: 20, color: C.violetMid),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Sumber: BMKG · ${app.fcStale ? 'data tersimpan' : 'diambil'} ${f.at(f.fetchedAt)} ${f.zone}',
+                    style: t(13, w6),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Suhu, hujan, angin, kelembapan, awan, dan peringatan dari BMKG. UV, tekanan, jarak pandang, matahari, '
+              '10 hari, dan rata-rata dari Open-Meteo (CC BY 4.0). Fase bulan dihitung di perangkat. '
+              'Prakiraan ini bukan prediksi banjir: untuk kondisi jalan, lihat laporan di Peta.',
+              style: t(13, FontWeight.w400, C.body, 1.55),
+            ),
+            const SizedBox(height: 12),
+            Btn(
+              'Cek genangan di Peta',
+              icon: Icons.map_outlined,
+              height: 48,
+              radius: 16,
+              fontSize: 14,
+              color: C.blueTint,
+              fg: C.blueMid,
+              onTap: () => app.go(Scr.map),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 
   Widget _loadingCard() => SizedBox(
@@ -404,164 +464,6 @@ class _ForecastScreenState extends State<ForecastScreen> {
     ),
   );
 
-  /// Isi kartu: ilustrasi berganti dengan scale+blur, angka bergulir, teks bergeser searah pilihan.
-  Widget _card(Forecast f, Slot cur, String key) => Column(
-    key: const ValueKey('card'),
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Transform.translate(
-            offset: const Offset(-14, -18),
-            child: SizedBox(
-              width: 150,
-              height: 150,
-              child: AnimatedSwitcher(
-                duration: dur(context, 420),
-                reverseDuration: dur(context, 200),
-                transitionBuilder: (child, a) => AnimatedBuilder(
-                  animation: a,
-                  child: child,
-                  builder: (context, child) {
-                    final v = easeOut.transform(a.value);
-                    return Opacity(
-                      opacity: v,
-                      child: Transform.scale(
-                        scale: .85 + .15 * v,
-                        child: ImageFiltered(
-                          imageFilter: ImageFilter.blur(
-                            sigmaX: 6 * (1 - v),
-                            sigmaY: 6 * (1 - v),
-                          ),
-                          child: child,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                child: WxAnim(
-                  cur.kind,
-                  key: ValueKey('${cur.kind}-$key'),
-                  size: 150,
-                ),
-              ),
-            ),
-          ),
-          // Angka besar mengecil sendiri kalau layar sempit / huruf sistem diperbesar.
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.topRight,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  CountTo(
-                    cur.temp,
-                    suffix: '°',
-                    style: t(
-                      68,
-                      w6,
-                      Colors.white,
-                      1,
-                    ).copyWith(letterSpacing: -2),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('Terasa ', style: t(13, w5, Colors.white)),
-                      CountTo(
-                        cur.feels,
-                        suffix: '°',
-                        style: t(13, w5, Colors.white),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-      Transform.translate(
-        offset: const Offset(0, -14),
-        child: AnimatedSwitcher(
-          duration: dur(context, 340),
-          reverseDuration: dur(context, 160),
-          transitionBuilder: materialize(from: Offset(_dir * 24, 0)),
-          layoutBuilder: (current, previous) => Stack(
-            alignment: Alignment.topLeft,
-            children: [...previous, ?current],
-          ),
-          child: Column(
-            key: ValueKey(key),
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(cur.desc, style: t(26, w7, Colors.white)),
-              Text(
-                'Pukul ${f.at(cur.time)} ${f.zone}',
-                style: t(14, w5, Colors.white),
-              ),
-              if (f.rainLine != null)
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .95),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.schedule_rounded,
-                        size: 16,
-                        color: C.violetInk,
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(child: Text(f.rainLine!, style: t(12, w6))),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-      Row(
-        children: [
-          _stat(
-            Icons.umbrella_rounded,
-            AnimatedSwitcher(
-              duration: dur(context, 260),
-              transitionBuilder: materialize(from: const Offset(0, 6)),
-              child: Text(
-                '${cur.rainMm.toStringAsFixed(1).replaceAll('.', ',')} mm',
-                key: ValueKey(cur.rainMm),
-                style: t(15, w6, Colors.white),
-              ),
-            ),
-            'Curah hujan',
-          ),
-          const SizedBox(width: 10),
-          _stat(
-            Icons.air_rounded,
-            CountTo(cur.wind, suffix: ' km/j', style: t(15, w6, Colors.white)),
-            'Angin',
-          ),
-          const SizedBox(width: 10),
-          _stat(
-            Icons.water_drop_outlined,
-            CountTo(cur.hum, suffix: '%', style: t(15, w6, Colors.white)),
-            'Kelembapan',
-          ),
-        ],
-      ),
-    ],
-  );
-
   Widget _skel(double w) => FractionallySizedBox(
     widthFactor: w,
     child: Container(
@@ -569,28 +471,6 @@ class _ForecastScreenState extends State<ForecastScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-      ),
-    ),
-  );
-
-  Widget _stat(IconData icon, Widget value, String label) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .24),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 24, color: Colors.white),
-          const SizedBox(height: 4),
-          value,
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: t(11, w5, Colors.white),
-          ),
-        ],
       ),
     ),
   );
@@ -606,66 +486,14 @@ class _ForecastScreenState extends State<ForecastScreen> {
   );
 }
 
-/// Chip slot 3 jam. Yang terpilih "terangkat": putih, bayangan, sedikit lebih besar.
-class _SlotChip extends StatelessWidget {
-  final Slot s;
-  final bool selected;
-  final VoidCallback onTap;
-  final String time; // jam menurut zona waktu lokasi
-  const _SlotChip(
-    this.s, {
-    required this.time,
-    required this.selected,
-    required this.onTap,
-  });
-
+/// Potong isi gulir di atas tepi bawah header.
+class _Below extends CustomClipper<Rect> {
+  final double top;
+  _Below(this.top);
   @override
-  Widget build(BuildContext context) {
-    final fg = selected ? C.violetMid : Colors.white;
-    return Semantics(
-      selected: selected,
-      label: 'Pukul $time, ${s.desc}, ${s.temp} derajat',
-      child: AnimatedScale(
-        scale: selected ? 1.04 : 1,
-        duration: dur(context, 260),
-        curve: easeOut,
-        child: Tap(
-          onTap: onTap,
-          width: 66,
-          height: 120,
-          radius: 33,
-          pressScale: .94,
-          // Biru muda, bukan putih: ilustrasi awan putih tetap terlihat di chip terpilih.
-          color: selected ? C.blueTint2 : Colors.white.withValues(alpha: .18),
-          border: Border.all(color: Colors.white.withValues(alpha: .4)),
-          shadow: selected
-              ? soft(.25, 24, 14, const Color(0xFF325AC8))
-              : soft(0, 24, 14, const Color(0xFF325AC8)),
-          child: ExcludeSemantics(
-            child: TweenAnimationBuilder<Color?>(
-              tween: ColorTween(end: fg),
-              duration: dur(context, 200),
-              builder: (context, c, _) => Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Satu baris & mengecil sendiri: chip tetap rapi pada ukuran huruf besar.
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(time, maxLines: 1, style: t(12, w6, c!)),
-                  ),
-                  WxAnim(s.kind, size: 44, live: selected),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text('${s.temp}°', maxLines: 1, style: t(18, w6, c)),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Rect getClip(Size size) => Rect.fromLTRB(0, top, size.width, size.height);
+  @override
+  bool shouldReclip(_Below old) => old.top != top;
 }
 
 /// Langit di belakang layar Prakiraan, sesuai jenis cuaca BMKG (lihat `kind` di bmkg-forecast):

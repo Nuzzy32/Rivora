@@ -116,6 +116,8 @@ class Slot {
   final DateTime time;
   final String kind, desc;
   final int temp, feels, wind, hum;
+  final int? windDir,
+      cloud; // derajat asal angin; tutupan awan % (null = data lama)
   final double rainMm;
   const Slot(
     this.time,
@@ -125,8 +127,10 @@ class Slot {
     this.rainMm,
     this.wind,
     this.hum,
-    this.desc,
-  );
+    this.desc, {
+    this.windDir,
+    this.cloud,
+  });
 
   Slot.fromJson(Map<String, dynamic> j)
     : time = _ts(j['time'])!,
@@ -136,7 +140,9 @@ class Slot {
       feels = (j['feels'] as num).round(),
       rainMm = (j['rain_mm'] as num).toDouble(),
       wind = (j['wind'] as num).round(),
-      hum = (j['hum'] as num).round();
+      hum = (j['hum'] as num).round(),
+      windDir = (j['wind_dir'] as num?)?.round(),
+      cloud = (j['cloud'] as num?)?.round();
 
   bool get rainy =>
       const ['heavy', 'storm', 'rain', 'nightrain'].contains(kind);
@@ -181,20 +187,79 @@ class Place {
   );
 }
 
+/// Satu hari prakiraan Open-Meteo (pelengkap: BMKG hanya 3 hari).
+class WxDay {
+  final DateTime date;
+  final int tmin, tmax, code, uv; // code = kode cuaca WMO
+  final double rainMm;
+  const WxDay(this.date, this.tmin, this.tmax, this.code, this.uv, this.rainMm);
+  WxDay.fromJson(Map<String, dynamic> j)
+    : date = DateTime.parse(j['date'] as String),
+      tmin = (j['tmin'] as num).round(),
+      tmax = (j['tmax'] as num).round(),
+      code = (j['code'] as num).round(),
+      uv = (j['uv'] as num).round(),
+      rainMm = (j['rain_mm'] as num).toDouble();
+
+  /// WMO → jenis ilustrasi yang sama dengan BMKG.
+  String get kind => switch (code) {
+    0 || 1 => 'sun',
+    2 => 'partly',
+    95 || 96 || 99 => 'storm',
+    65 || 67 || 82 => 'heavy',
+    >= 51 && <= 82 => 'rain',
+    _ => 'cloud',
+  };
+}
+
+/// Data yang tidak disediakan BMKG, dari Open-Meteo (CC BY 4.0). Semua opsional.
+class WxExtra {
+  final List<WxDay> days;
+  final int? uv, pressure, visibilityM, avgHigh;
+  final String? sunrise, sunset; // jam lokal lokasi "HH:MM"
+  const WxExtra(
+    this.days, {
+    this.uv,
+    this.pressure,
+    this.visibilityM,
+    this.avgHigh,
+    this.sunrise,
+    this.sunset,
+  });
+  factory WxExtra.fromJson(Map<String, dynamic> j) => WxExtra(
+    [
+      for (final d in (j['days'] as List?) ?? const [])
+        WxDay.fromJson(d as Map<String, dynamic>),
+    ],
+    uv: (j['uv'] as num?)?.round(),
+    pressure: (j['pressure'] as num?)?.round(),
+    visibilityM: (j['visibility_m'] as num?)?.round(),
+    avgHigh: (j['avg_high'] as num?)?.round(),
+    sunrise: (j['sunrise'] as String?)?.substring(11, 16),
+    sunset: (j['sunset'] as String?)?.substring(11, 16),
+  );
+}
+
 class Forecast {
   final Place place;
   final String tz; // Asia/Jakarta | Asia/Makassar | Asia/Jayapura
   final List<Slot> slots;
   final DateTime fetchedAt;
   final String? warning;
+  final WxExtra? extra;
   const Forecast(
     this.place,
     this.tz,
     this.slots,
     this.fetchedAt, [
     this.warning,
+    this.extra,
   ]);
-  Forecast withWarning(String w) => Forecast(place, tz, slots, fetchedAt, w);
+  Forecast withWarning(String w) =>
+      Forecast(place, tz, slots, fetchedAt, w, extra);
+
+  /// Jam lokal lokasi sebagai DateTime (untuk hari & posisi matahari).
+  DateTime local(DateTime t) => t.toUtc().add(Duration(hours: _offset));
 
   int get _offset => tz == 'Asia/Jayapura'
       ? 9
@@ -605,6 +670,12 @@ class Api {
           Slot.fromJson(s as Map<String, dynamic>),
       ].where((s) => s.time.isAfter(now)).toList(),
       _ts(r['fetched_at'])!,
+      null,
+      r['forecast_json']['extra'] == null
+          ? null
+          : WxExtra.fromJson(
+              r['forecast_json']['extra'] as Map<String, dynamic>,
+            ),
     );
     final w = (r['warnings'] as List?)?.firstOrNull as Map<String, dynamic>?;
     return w == null

@@ -69,10 +69,31 @@ void main() {
                   10,
                   80,
                   'Uji',
+                  windDir: 99,
+                  cloud: 60,
                 ),
             ],
             now,
             'Peringatan uji',
+            WxExtra(
+              [
+                for (var d = 0; d < 10; d++)
+                  WxDay(
+                    now.add(Duration(days: d)),
+                    24 + d % 3,
+                    33 + d % 3,
+                    [0, 2, 3, 61, 65, 95][d % 6],
+                    9,
+                    d * 1.5,
+                  ),
+              ],
+              uv: 9,
+              pressure: 1009,
+              visibilityM: 24000,
+              avgHigh: 33,
+              sunrise: '05:07',
+              sunset: '17:22',
+            ),
           )
           ..fcLoading = false;
 

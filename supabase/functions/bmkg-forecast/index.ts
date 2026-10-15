@@ -6,8 +6,21 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { type SupabaseContext, withSupabase } from "@supabase/server";
 
-type BmkgSlot = { datetime: string; local_datetime: string; t: number; hu: number; ws: number; tp: number; weather_desc: string };
-type Slot = { time: string; kind: string; desc: string; temp: number; feels: number; rain_mm: number; wind: number; hum: number };
+type BmkgSlot = {
+  datetime: string; local_datetime: string; t: number; hu: number; ws: number; tp: number; weather_desc: string;
+  wd_deg: number; tcc: number;
+};
+type Slot = {
+  time: string; kind: string; desc: string; temp: number; feels: number; rain_mm: number; wind: number; hum: number;
+  wind_dir: number; cloud: number;
+};
+// Pelengkap dari Open-Meteo (CC BY 4.0) untuk yang tidak disediakan BMKG; data inti tetap BMKG.
+type Extra = {
+  source: "Open-Meteo";
+  days?: { date: string; tmin: number; tmax: number; code: number; uv: number; rain_mm: number }[];
+  uv?: number; pressure?: number; visibility_m?: number; sunrise?: string; sunset?: string;
+  avg_high?: number; // rata-rata suhu tertinggi 10 tahun untuk tanggal ini (±7 hari)
+};
 
 const FRESH_MS = 60 * 60_000;
 const ADM4 = /^\d{2}\.\d{2}\.\d{2}\.\d{4}$/;
@@ -35,12 +48,12 @@ function feels(t: number, rh: number): number {
 const rainy = (k: string) => ["heavy", "storm", "rain", "nightrain"].includes(k);
 
 // Waktu disimpan UTC; aplikasi menampilkan menurut zona waktu desa (WIB/WITA/WIT).
-async function forecast(adm4: string): Promise<Slot[] | null> {
+async function forecast(adm4: string): Promise<{ slots: Slot[]; lat: number; lon: number } | null> {
   const r = await fetch(`https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4=${adm4}`, { signal: AbortSignal.timeout(8000) });
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(`BMKG ${adm4}: ${r.status}`);
   const j = await r.json();
-  return (j.data[0].cuaca as BmkgSlot[][]).flat().map((s) => ({
+  const slots = (j.data[0].cuaca as BmkgSlot[][]).flat().map((s) => ({
     time: s.datetime,
     kind: kind(s.weather_desc, Number(s.local_datetime.slice(11, 13))),
     desc: s.weather_desc,
@@ -49,7 +62,49 @@ async function forecast(adm4: string): Promise<Slot[] | null> {
     rain_mm: s.tp ?? 0,
     wind: Math.round(s.ws),
     hum: s.hu,
+    wind_dir: s.wd_deg,
+    cloud: s.tcc,
   }));
+  return { slots, lat: j.lokasi.lat, lon: j.lokasi.lon };
+}
+
+const OM_FORECAST = "https://api.open-meteo.com/v1/forecast";
+const OM_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive";
+
+// Gagal sebagian = kartu terkait tidak ditampilkan; prakiraan BMKG tetap jalan.
+async function openMeteo(lat: number, lon: number): Promise<Extra> {
+  const at = `latitude=${lat}&longitude=${lon}&timezone=auto`;
+  const now = new Date(), y = now.getUTCFullYear();
+  const [f, a] = await Promise.allSettled([
+    fetch(`${OM_FORECAST}?${at}&forecast_days=10&current=pressure_msl,uv_index,visibility` +
+      `&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,sunrise,sunset,precipitation_sum`,
+      { signal: AbortSignal.timeout(6000) }).then((r) => r.ok ? r.json() : Promise.reject(r.status)),
+    fetch(`${OM_ARCHIVE}?${at}&start_date=${y - 10}-01-01&end_date=${y - 1}-12-31&daily=temperature_2m_max`,
+      { signal: AbortSignal.timeout(6000) }).then((r) => r.ok ? r.json() : Promise.reject(r.status)),
+  ]);
+  const x: Extra = { source: "Open-Meteo" };
+  if (f.status === "fulfilled") {
+    const d = f.value.daily, c = f.value.current;
+    x.days = d.time.map((date: string, i: number) => ({
+      date, tmin: Math.round(d.temperature_2m_min[i]), tmax: Math.round(d.temperature_2m_max[i]),
+      code: d.weather_code[i], uv: Math.round(d.uv_index_max[i] ?? 0), rain_mm: d.precipitation_sum[i] ?? 0,
+    }));
+    x.uv = Math.round(c.uv_index ?? 0);
+    x.pressure = Math.round(c.pressure_msl);
+    x.visibility_m = Math.round(c.visibility);
+    x.sunrise = d.sunrise[0];
+    x.sunset = d.sunset[0];
+  } else console.error("open-meteo forecast", f.reason);
+  if (a.status === "fulfilled") {
+    // Hari-dalam-tahun ±7 hari dari hari ini, semua 10 tahun.
+    const doy = (s: string) => Math.floor((Date.parse(s) - Date.parse(s.slice(0, 4) + "-01-01")) / 864e5);
+    const today = doy(now.toISOString().slice(0, 10));
+    const d = a.value.daily;
+    const near = d.time.map((t: string, i: number) => [Math.abs(doy(t) - today), d.temperature_2m_max[i]])
+      .filter(([dd, v]: number[]) => (dd <= 7 || dd >= 358) && v != null).map(([, v]: number[]) => v);
+    if (near.length) x.avg_high = Math.round(near.reduce((s: number, v: number) => s + v, 0) / near.length);
+  } else console.error("open-meteo archive", a.reason);
+  return x;
 }
 
 // Peringatan dini: RSS daftar peringatan aktif → CAP 1.2 per peringatan (poligon "lat,lon lat,lon …").
@@ -110,12 +165,13 @@ export default {
     if (!ok) return Response.json(cached ?? { error: "kuota BMKG penuh, coba sebentar lagi" }, { status: 429 });
 
     try {
-      const slots = await forecast(adm4);
-      if (!slots) return Response.json({ error: "BMKG belum punya prakiraan desa ini" }, { status: 404 });
-      const upcoming = slots.filter((s) => Date.parse(s.time) > Date.now() - 3 * 3600_000);
+      const f = await forecast(adm4);
+      if (!f) return Response.json({ error: "BMKG belum punya prakiraan desa ini" }, { status: 404 });
+      const upcoming = f.slots.filter((s) => Date.parse(s.time) > Date.now() - 3 * 3600_000);
+      const extra = await openMeteo(f.lat, f.lon);
       const row = {
         adm4,
-        forecast_json: { slots: upcoming },
+        forecast_json: { slots: upcoming, extra },
         rain_end_at: upcoming[0] && rainy(upcoming[0].kind) ? upcoming.find((s) => !rainy(s.kind))?.time ?? null : null,
         fetched_at: new Date().toISOString(),
       };
