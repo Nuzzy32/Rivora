@@ -185,9 +185,11 @@ class _ForecastScreenState extends State<ForecastScreen> {
                       style: s(13, w6).copyWith(letterSpacing: .6),
                     ),
                   ),
+                  // Nama tepat di tengah; panah "menggantung" di kanan (penyeimbang tak terlihat di kiri).
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      const SizedBox(width: 24),
                       Flexible(
                         child: Text(
                           place?.name ?? 'Pilih lokasi',
@@ -211,9 +213,23 @@ class _ForecastScreenState extends State<ForecastScreen> {
               opacity: full,
               child: Column(
                 children: [
-                  Text(
-                    '${cur.temp}°',
-                    style: s(96, FontWeight.w300).copyWith(height: 1.05),
+                  // Angka di tengah, ° menggantung di kanan seperti iPhone.
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '°',
+                        style: s(96, FontWeight.w300).copyWith(
+                          height: 1.05,
+                          color: Colors.transparent,
+                          shadows: const [],
+                        ),
+                      ),
+                      Text(
+                        '${cur.temp}°',
+                        style: s(96, FontWeight.w300).copyWith(height: 1.05),
+                      ),
+                    ],
                   ),
                   Text(cur.desc, style: s(20, FontWeight.w500)),
                   if (r != null)
