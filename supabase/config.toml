@@ -237,7 +237,7 @@ otp_expiry = 3600
 # Use a production-ready SMTP server
 # Wajib sebelum rilis: email bawaan Supabase hanya terkirim ke anggota tim (2/jam).
 # Contoh Brevo (bisa tanpa domain sendiri): host smtp-relay.brevo.com, port 587, user = login SMTP Brevo,
-# pass = "env(SMTP_PASS)", admin_email = pengirim terverifikasi di Brevo, sender_name = "SIGAP Banjir".
+# pass = "env(SMTP_PASS)", admin_email = pengirim terverifikasi di Brevo, sender_name = "Rivora".
 # Isi SMTP_PASS di environment (jangan di file ini), hapus tanda pagar, lalu `supabase config push`.
 # [auth.email.smtp]
 # enabled = true
@@ -250,15 +250,15 @@ otp_expiry = 3600
 
 # Template email bahasa Indonesia (didorong ke proyek dengan `supabase config push`).
 [auth.email.template.confirmation]
-subject = "Konfirmasi email SIGAP Banjir"
+subject = "Konfirmasi email Rivora"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.recovery]
-subject = "Atur ulang kata sandi SIGAP Banjir"
+subject = "Atur ulang kata sandi Rivora"
 content_path = "./supabase/templates/recovery.html"
 
 [auth.email.template.email_change]
-subject = "Konfirmasi email baru SIGAP Banjir"
+subject = "Konfirmasi email baru Rivora"
 content_path = "./supabase/templates/email_change.html"
 
 # Uncomment to customize email template

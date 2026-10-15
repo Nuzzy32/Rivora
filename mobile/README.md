@@ -1,4 +1,4 @@
-# SIGAP Banjir (mobile)
+# Rivora (mobile)
 
 Aplikasi Flutter untuk warga se-Indonesia: status genangan per lokasi, prakiraan BMKG, laporan warga, posko/faskes, dan panduan siaga. Desain dari Claude Design (`SIGAP Banjir.dc.html`), kebutuhan dari PRD. Backend: Supabase (`../supabase`).
 

@@ -14,7 +14,7 @@ else {
   const d = depthOf(p.status === 'receded' ? 'none' : p.depth)
   const when = t => new Intl.DateTimeFormat('id-ID', { timeZone: p.tz, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
     .format(new Date(t)).replace(':', '.') + ' ' + (TZ[p.tz] || '')
-  document.title = `${p.name} · SIGAP Banjir`
+  document.title = `${p.name} · Rivora`
   $('name').textContent = p.name
   $('area').textContent = [p.district && 'Kec. ' + p.district, p.area].filter(Boolean).join(', ')
   $('depth').style.background = d.tint

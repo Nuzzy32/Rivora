@@ -65,7 +65,7 @@ class SigapApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'SIGAP Banjir',
+    title: 'Rivora',
     debugShowCheckedModeBanner: false,
     theme: buildTheme(),
     // PRD §9: ukuran huruf sistem didukung sampai 130%.

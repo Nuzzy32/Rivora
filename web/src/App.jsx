@@ -64,7 +64,7 @@ function Login({ err, setErr }) {
       <div className="hero">
         <div className="row" style={{ gap: 12 }}>
           <div className="logo big"><img src="/logo-mark.png" alt="" /></div>
-          <span style={{ fontSize: 20, fontWeight: 700 }}>SIGAP Banjir</span>
+          <span style={{ fontSize: 20, fontWeight: 700 }}>Rivora</span>
           <span className="tag">Panel</span>
         </div>
         <div className="col" style={{ gap: 16, maxWidth: 480 }}>
@@ -143,7 +143,7 @@ function Shell({ me }) {
           <nav className="side" aria-label="Menu">
             <div className="row" style={{ gap: 10, padding: '0 8px 18px' }}>
               <div className="logo"><img src="/logo-mark.png" alt="" /></div>
-              <div className="col"><span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.2 }}>SIGAP Banjir</span><span className="sub">Panel web</span></div>
+              <div className="col"><span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.2 }}>Rivora</span><span className="sub">Panel web</span></div>
             </div>
             {Object.entries(PAGES).map(([k, p]) => {
               const on = k === page, lk = p[3] && !admin

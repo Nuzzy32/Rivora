@@ -127,7 +127,7 @@ class _ShareCard extends StatelessWidget {
               children: [
                 Image.asset('assets/brand/logo-mark.png', height: 26),
                 const SizedBox(width: 8),
-                Text('SIGAP Banjir', style: t(13, w7, C.ink)),
+                Text('Rivora', style: t(13, w7, C.ink)),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -204,7 +204,7 @@ class _ShareCard extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              'Cek kondisi terbaru di aplikasi SIGAP Banjir',
+              'Cek kondisi terbaru di aplikasi Rivora',
               style: t(11, w6, C.blueInk),
             ),
           ],

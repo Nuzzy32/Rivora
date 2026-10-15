@@ -1,4 +1,4 @@
-# Gaya peta SIGAP Banjir Light
+# Gaya peta Rivora Light
 
 Turunan Mapbox Streets v12 yang lebih kalem agar penanda genangan menonjol: latar abu kebiruan,
 air biru muda, taman hijau pudar, label nama lokal (Indonesia), POI disaring ke yang relevan saat

@@ -51,10 +51,10 @@ class OnboardingScreen extends StatelessWidget {
               Image.asset(
                 'assets/brand/logo-mark.png',
                 height: 36,
-                semanticLabel: 'Logo SIGAP Banjir',
+                semanticLabel: 'Logo Rivora',
               ),
               const SizedBox(width: 10),
-              Expanded(child: Text('SIGAP Banjir', style: t(16, w7))),
+              Expanded(child: Text('Rivora', style: t(16, w7))),
               Tap(
                 onTap: () => app.go(Scr.permission),
                 height: 48,

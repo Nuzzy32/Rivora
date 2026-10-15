@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/logo.png" width="150" alt="Logo SIGAP Banjir" />
+<img src="docs/logo.png" width="150" alt="Logo Rivora" />
 
-# SIGAP Banjir
+# Rivora
 
 **Status genangan per lokasi untuk warga di seluruh Indonesia.**
 Tinggi air, waktu pembaruan, dan sumbernya, supaya warga bisa memutuskan rute atau mengungsi sebelum terjebak.
@@ -26,7 +26,7 @@ Tinggi air, waktu pembaruan, dan sumbernya, supaya warga bisa memutuskan rute at
 
 Riset awalnya di Surabaya: warga dan komuter biasanya tahu ada banjir dari grup WhatsApp atau media sosial. Kabarnya sering terlambat, tidak menyebut titik lokasi, dan tidak jelas kebenarannya. Ketiga narasumber riset persona mengalami hal yang sama: baru tahu jalannya banjir saat sudah terjebak di sana.
 
-SIGAP Banjir menjawab satu pertanyaan: **jalan atau lokasi ini aman dilalui atau tidak, dan siapa sumbernya.** Aplikasi ini lapisan informasi, bukan pengganti keputusan resmi BPBD. Prakiraan hujan diambil dari BMKG, dan kondisi lapangan berasal dari laporan warga yang selalu diberi label status verifikasi.
+Rivora menjawab satu pertanyaan: **jalan atau lokasi ini aman dilalui atau tidak, dan siapa sumbernya.** Aplikasi ini lapisan informasi, bukan pengganti keputusan resmi BPBD. Prakiraan hujan diambil dari BMKG, dan kondisi lapangan berasal dari laporan warga yang selalu diberi label status verifikasi.
 
 ## Fitur
 
@@ -97,8 +97,8 @@ mobile/                 Aplikasi Flutter
   lib/motion.dart       Animasi bersama (menghormati "Kurangi Gerakan")
   lib/screens/          14 layar: peta, prakiraan, lapor, akun, darurat, …
   assets/guide.json     Panduan siaga (offline)
-  map-style/            Gaya peta "SIGAP Banjir Light" untuk Mapbox Studio + pembangunnya
-  branding/             Logo resmi (lengkap & tanda) sumber ikon, splash, dan aset web
+  map-style/            Gaya peta "Rivora Light" untuk Mapbox Studio + pembangunnya
+  branding/             Tanda logo Rivora: sumber ikon, splash, dan aset web
 web/                    Panel web Verifikator & Admin (Vite + React + Leaflet)
   src/pages/            Dasbor, antrean, status lokasi, posko/kontak, pengguna
   public/privasi.html   Kebijakan privasi (publik, tanpa login)

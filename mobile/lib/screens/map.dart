@@ -1027,7 +1027,7 @@ class _RiskLegend extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Text(
-              'Belum ada area rawan di data SIGAP Banjir. Area terbentuk otomatis dari lokasi yang tergenang ≥ 3 kali dalam 12 bulan, dihitung ulang setiap hari.',
+              'Belum ada area rawan di data Rivora. Area terbentuk otomatis dari lokasi yang tergenang ≥ 3 kali dalam 12 bulan, dihitung ulang setiap hari.',
               style: t(12, FontWeight.w400, C.body, 1.45),
             ),
           )
@@ -1060,7 +1060,7 @@ class _RiskLegend extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Berdasarkan kejadian tercatat di SIGAP Banjir${Api.riskSince.isEmpty ? '' : ' sejak ${Api.riskSince}'}.',
+            'Berdasarkan kejadian tercatat di Rivora${Api.riskSince.isEmpty ? '' : ' sejak ${Api.riskSince}'}.',
             style: t(11, FontWeight.w400, C.muted, 1.4),
           ),
         ],

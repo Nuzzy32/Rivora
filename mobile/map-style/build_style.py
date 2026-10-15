@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the "SIGAP Banjir Light" Mapbox style from mapbox/streets-v12.
+"""Build the "Rivora Light" Mapbox style from mapbox/streets-v12.
 
 Usage: python3 build_style.py [out.json]
 Reads MAPBOX_TOKEN from ../env.json at runtime, fetches streets-v12,
@@ -135,7 +135,7 @@ OVERRIDES = {
 def transform(style):
     for k in DROP_KEYS:
         style.pop(k, None)
-    style["name"] = "SIGAP Banjir Light"
+    style["name"] = "Rivora Light"
     style["fog"]["high-color"] = "hsl(214, 50%, 85%)"
     style["fog"]["space-color"] = ["interpolate", ["exponential", 1.2], ["zoom"],
                                    5, "hsl(214, 25%, 40%)", 7, "hsl(214, 50%, 85%)"]

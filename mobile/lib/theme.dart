@@ -739,7 +739,7 @@ double tabSpace(BuildContext c) => tabTop(c) + 24;
 /// menonjol (gratis s.d. 200 rb tile/bulan). Tanpa token: OSM standar yang diredupkan.
 const _mapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
 
-/// Gaya kustom "SIGAP Banjir Light" (map-style/sigap-light.json, diunggah ke Mapbox Studio):
+/// Gaya kustom "Rivora Light" (map-style/sigap-light.json, diunggah ke Mapbox Studio):
 /// isi MAPBOX_STYLE = "username/style_id". Kosong = Mapbox Streets.
 const _mapboxStyle = String.fromEnvironment(
   'MAPBOX_STYLE',

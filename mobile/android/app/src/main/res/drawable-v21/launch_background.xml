@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Splash: logo resmi SIGAP Banjir di atas putih. -->
+<!-- Splash: tanda logo Rivora di atas putih. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/splash" />
     <item>

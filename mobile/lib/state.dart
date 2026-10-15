@@ -767,9 +767,9 @@ class AppState extends ChangeNotifier {
   Future<void> share(FloodPoint p, {String? imagePath}) async {
     final v = vers[p.verification]!.label;
     final text = p.receded
-        ? '${p.name} sudah surut sejak ${hm(p.recededAt!)} · ${p.source}. Cek kondisi terbaru di aplikasi SIGAP Banjir.'
+        ? '${p.name} sudah surut sejak ${hm(p.recededAt!)} · ${p.source}. Cek kondisi terbaru di aplikasi Rivora.'
         : '${p.name}, Kec. ${p.district}: tergenang ${depths[p.depth].label.toLowerCase()} (${depths[p.depth].cm}) · '
-              '${p.stale ? 'Perlu Konfirmasi · ' : ''}$v · diperbarui ${hm(p.updatedAt)} · sumber ${p.source}. Cek kondisi terbaru di aplikasi SIGAP Banjir.';
+              '${p.stale ? 'Perlu Konfirmasi · ' : ''}$v · diperbarui ${hm(p.updatedAt)} · sumber ${p.source}. Cek kondisi terbaru di aplikasi Rivora.';
     await SharePlus.instance.share(
       ShareParams(
         text: '$text\n${pointLink(p.id)}',

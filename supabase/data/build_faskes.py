@@ -59,7 +59,7 @@ def fetch(key, f):
         for url in ENDPOINTS:
             try:
                 req = urllib.request.Request(url, data=body, headers={
-                    "User-Agent": "SIGAP-Banjir build_faskes.py (impor faskes sekali jalan; urllib)"})
+                    "User-Agent": "Rivora build_faskes.py (impor faskes sekali jalan; urllib)"})
                 with urllib.request.urlopen(req, timeout=660) as r:
                     raw = r.read()
                 data = json.loads(raw)  # halaman galat Overpass berupa HTML -> gagal di sini
