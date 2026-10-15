@@ -213,23 +213,26 @@ class _ForecastScreenState extends State<ForecastScreen> {
               opacity: full,
               child: Column(
                 children: [
-                  // Angka di tengah, ° menggantung di kanan seperti iPhone.
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '°',
-                        style: s(96, FontWeight.w300).copyWith(
-                          height: 1.05,
-                          color: Colors.transparent,
-                          shadows: const [],
+                  // Angka di tengah, ° menggantung di kanan seperti iPhone; mengecil bila tak muat.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '°',
+                          style: s(96, FontWeight.w300).copyWith(
+                            height: 1.05,
+                            color: Colors.transparent,
+                            shadows: const [],
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${cur.temp}°',
-                        style: s(96, FontWeight.w300).copyWith(height: 1.05),
-                      ),
-                    ],
+                        Text(
+                          '${cur.temp}°',
+                          style: s(96, FontWeight.w300).copyWith(height: 1.05),
+                        ),
+                      ],
+                    ),
                   ),
                   Text(cur.desc, style: s(20, FontWeight.w500)),
                   if (r != null)
