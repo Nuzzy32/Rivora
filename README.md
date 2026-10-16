@@ -15,12 +15,31 @@ Tinggi air, waktu pembaruan, dan sumbernya, supaya warga bisa memutuskan rute at
 
 <br>
 
-<img src="docs/screenshots/onboarding.jpg" width="200" alt="Onboarding" />&nbsp;
-<img src="docs/screenshots/peta.jpg" width="200" alt="Peta genangan dengan lapisan faskes" />&nbsp;
-<img src="docs/screenshots/prakiraan.jpg" width="200" alt="Prakiraan BMKG per desa" />&nbsp;
-<img src="docs/screenshots/darurat.jpg" width="200" alt="Darurat: 112, BPBD setempat, kontak nasional" />
+<a href="docs/video/rivora-product-film.mp4">
+  <img src="docs/video/preview.gif" width="760" alt="Cuplikan film produk Rivora: riak air menjadi peta, pin genangan, tinggi air, laporan warga, dan end card" />
+</a>
+
+**▶ [Tonton film produk lengkap (75 detik, 1080p)](docs/video/rivora-product-film.mp4)**
+
+<br>
+
+<img src="docs/screenshots/peta.jpg" width="230" alt="Peta genangan Surabaya dengan lapisan Genangan, Posko, dan Faskes" />&nbsp;
+<img src="docs/screenshots/prakiraan.jpg" width="230" alt="Prakiraan BMKG per 3 jam dan 10 hari untuk Kota Surabaya" />&nbsp;
+<img src="docs/screenshots/darurat.jpg" width="230" alt="Darurat: Panggil 112, BPBD setempat, dan kontak nasional" />
+
+<sub>Peta · Prakiraan · Darurat (UI terbaru)</sub>
 
 </div>
+
+## Sekilas
+
+| Pertanyaan warga | Jawaban Rivora |
+| --- | --- |
+| Jalan ini tergenang atau tidak? | Titik genangan di peta dengan 5 tingkat ketinggian bergambar, dari *Aman* sampai *Sedada ke atas*. |
+| Kabarnya bisa dipercaya? | Setiap titik berlabel **Resmi**, **Terverifikasi**, atau **Belum Terverifikasi**, plus waktu pembaruan terakhir. |
+| Hujan masih lama? | Prakiraan BMKG per 3 jam untuk desa/kelurahan mana pun. Ini prakiraan cuaca, bukan prediksi banjir. |
+| Saya melihat genangan, bagaimana membantu? | Lapor dalam kurang dari satu menit: lokasi, gambar tinggi air, foto. Laporan baru tampil sebagai *Belum Terverifikasi* sampai dicek verifikator. |
+| Butuh bantuan sekarang? | Panggil 112 sekali ketuk, kontak BPBD setempat, posko, dan faskes terdekat. |
 
 ## Kenapa
 
@@ -99,6 +118,7 @@ mobile/                 Aplikasi Flutter
   assets/guide.json     Panduan siaga (offline)
   map-style/            Gaya peta "Rivora Light" untuk Mapbox Studio + pembangunnya
   branding/             Tanda logo Rivora: sumber ikon, splash, dan aset web
+  assets/icons/         Ikon 2D aplikasi (256 px) yang dipotong dari lembar sumber di assets/icon-sheets-2d-v2/
 web/                    Panel web Verifikator & Admin (Vite + React + Leaflet)
   src/pages/            Dasbor, antrean, status lokasi, posko/kontak, pengguna
   public/privasi.html   Kebijakan privasi (publik, tanpa login)
@@ -111,7 +131,8 @@ supabase/
   templates/            Template email bahasa Indonesia (konfirmasi, reset sandi, ganti email)
   tests/                Tes migrasi di PGlite (Postgres + PostGIS dalam memori): npm install && npm test
   seed.sql              Faskes & kontak darurat awal
-docs/screenshots/
+docs/screenshots/       Tangkapan layar UI terbaru
+docs/video/             Film produk 75 detik (MP4), cuplikan GIF, dan poster
 ```
 
 ## Menjalankan
@@ -193,6 +214,8 @@ Android menandatangani dengan kunci upload dari `android/key.properties` (tidak 
 - [x] Cache peta offline setelah aplikasi ditutup: tile yang pernah dilihat (30 hari) dan data terakhir (titik, posko, kontak, area rawan, prakiraan)
 - [x] Siap rilis: ikon & splash, tanda tangan rilis, kebijakan privasi, laporan galat (Sentry, opsional)
 - [x] Panel web online: https://sigap-banjir-panel.vercel.app
+- [x] Ikon 2D buatan sendiri untuk navbar, lapisan peta, cuaca, dan kontak darurat
+- [x] Film produk 75 detik (`docs/video/`)
 - [ ] Notifikasi push (FCM)
 - [ ] Nomor BPBD kab/kota se-Indonesia (diimpor dari sumber resmi lewat panel)
 
@@ -204,6 +227,14 @@ Android menandatangani dengan kunci upload dari `android/key.properties` (tidak 
 - Rumah sakit & puskesmas: **© OpenStreetMap contributors** (ODbL), lewat Overpass API. Dibangun ulang dengan `supabase/data/build_faskes.py`; atribusi tampil di detail faskes.
 - Radar hujan: **Rain Viewer**, untuk penggunaan non-komersial.
 - `seed.sql` hanya berisi beberapa faskes dan kontak darurat contoh. Titik genangan berasal dari laporan warga atau status Resmi; posko dan nomor BPBD diisi Admin dari sumber resmi lewat panel (formulir atau impor CSV). Cek alamat dan nomor ke sumber resmi sebelum rilis.
+
+## Film produk
+
+[`docs/video/rivora-product-film.mp4`](docs/video/rivora-product-film.mp4) adalah film 75 detik berbahasa Indonesia tentang alur masalah → cara pakai → manfaat, dibuat dengan [HyperFrames](https://github.com/heygen-com/hyperframes) (HTML + GSAP). Isinya:
+
+- Layar Prakiraan dan Darurat adalah tangkapan layar asli aplikasi.
+- Layar Peta dan Lapor direkonstruksi dari kode aplikasi dengan data contoh, dan di film diberi label *Ilustrasi data*.
+- Musik dan efek suaranya disintesis sendiri, tanpa sampel pihak ketiga.
 
 ## Latar belakang
 
