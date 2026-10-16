@@ -15,11 +15,11 @@ Tinggi air, waktu pembaruan, dan sumbernya, supaya warga bisa memutuskan rute at
 
 <br>
 
-<a href="docs/video/rivora-product-film.mp4">
+<a href="https://github.com/Nuzzy32/Rivora/raw/main/docs/video/rivora-product-film.mp4">
   <img src="docs/video/preview.gif" width="760" alt="Cuplikan film produk Rivora: riak air menjadi peta, pin genangan, tinggi air, laporan warga, dan end card" />
 </a>
 
-**▶ [Tonton film produk lengkap (75 detik, 1080p)](docs/video/rivora-product-film.mp4)**
+**▶ [Tonton film produk lengkap (75 detik, 1080p, MP4 15 MB)](https://github.com/Nuzzy32/Rivora/raw/main/docs/video/rivora-product-film.mp4)**
 
 <br>
 
