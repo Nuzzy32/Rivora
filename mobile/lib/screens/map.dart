@@ -72,7 +72,8 @@ class _MapScreenState extends State<MapScreen>
   Future<void> _locateMe() async {
     if (app.locDenied) return app.showToast('Izin lokasi belum aktif');
     await app.locate();
-    if (mounted) _flyTo(app.center, 15); // layar bisa sudah ditutup saat GPS selesai
+    if (mounted)
+      _flyTo(app.center, 15); // layar bisa sudah ditutup saat GPS selesai
     app.showToast(
       app.userPos == null
           ? 'Lokasi belum bisa dibaca. Coba lagi di tempat terbuka.'
@@ -333,7 +334,7 @@ class _MapScreenState extends State<MapScreen>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
             children: [
-              for (final (k, label, icon) in const [
+              for (final (k, label, _) in const [
                 ('flood', 'Genangan', Icons.water_rounded),
                 ('posko', 'Posko', Icons.night_shelter_rounded),
                 ('faskes', 'Faskes', Icons.local_hospital_rounded),
@@ -366,12 +367,9 @@ class _MapScreenState extends State<MapScreen>
                         duration: dur(context, 200),
                         builder: (context, c, _) => Row(
                           children: [
-                            Icon(
-                              app.layers.contains(k)
-                                  ? Icons.check_rounded
-                                  : icon,
-                              size: 16,
-                              color: c,
+                            AppIcon(
+                              'layer_${k == 'risk' ? 'rawan' : k}',
+                              size: 26,
                             ),
                             const SizedBox(width: 5),
                             Text(label, style: t(13, w6, c!)),
@@ -466,11 +464,7 @@ class _MapScreenState extends State<MapScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.check_circle_rounded,
-                              size: 16,
-                              color: C.green,
-                            ),
+                            const AppIcon('empty_safe', size: 28),
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(

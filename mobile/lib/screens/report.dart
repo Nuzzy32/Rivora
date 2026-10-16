@@ -563,11 +563,7 @@ class SentScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(40),
                   boxShadow: soft(.4, 40, 24, C.violet),
                 ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  size: 60,
-                  color: Colors.white,
-                ),
+                child: const AppIcon('state_sent', size: 110),
               ),
             ),
           ),

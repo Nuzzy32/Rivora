@@ -1,0 +1,76 @@
+[
+  {
+    "file": "weather-sheet.png",
+    "columns": 4,
+    "rows": 3,
+    "order": "left-to-right, top-to-bottom",
+    "icons": [
+      "wx_sun",
+      "wx_partly",
+      "wx_cloud",
+      "wx_rain",
+      "wx_heavy",
+      "wx_storm",
+      "wx_night_clear",
+      "wx_night_cloud",
+      "wx_night_rain",
+      "wx_sunrise",
+      "wx_sunset",
+      "wx_wind"
+    ]
+  },
+  {
+    "file": "layers-sheet.png",
+    "columns": 3,
+    "rows": 2,
+    "order": "left-to-right, top-to-bottom",
+    "icons": [
+      "layer_flood",
+      "layer_posko",
+      "layer_faskes",
+      "layer_radar",
+      "layer_rawan"
+    ]
+  },
+  {
+    "file": "emergency-sheet.png",
+    "columns": 4,
+    "rows": 2,
+    "order": "left-to-right, top-to-bottom",
+    "icons": [
+      "call_bpbd",
+      "call_bnpb",
+      "call_sar",
+      "call_damkar",
+      "call_ambulans",
+      "call_polisi",
+      "call_112"
+    ]
+  },
+  {
+    "file": "account-sheet.png",
+    "columns": 3,
+    "rows": 2,
+    "order": "left-to-right, top-to-bottom",
+    "icons": [
+      "menu_watch",
+      "menu_notif",
+      "menu_history",
+      "menu_guide",
+      "menu_privacy"
+    ]
+  },
+  {
+    "file": "status-sheet.png",
+    "columns": 3,
+    "rows": 2,
+    "order": "left-to-right, top-to-bottom",
+    "icons": [
+      "empty_safe",
+      "empty_search",
+      "state_offline",
+      "state_sent",
+      "state_email"
+    ]
+  }
+]

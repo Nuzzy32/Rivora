@@ -293,7 +293,7 @@ class TabBar5 extends StatelessWidget {
   Widget build(BuildContext context) {
     final tab = tabOf[app.screen];
     final items = [
-      // Ikon 3D buatan sendiri (assets/nav); warna = tint lingkaran tab aktif.
+      // Ikon 2D berwarna; warna tab tetap mengatur tint lingkaran aktif.
       ('peta', 'Peta', C.blue, () => app.go(Scr.map)),
       ('cuaca', 'Prakiraan', C.blue, () => app.go(Scr.forecast)),
       ('lapor', 'Lapor', C.violet, app.openReport),
@@ -402,11 +402,7 @@ class TabBar5 extends StatelessWidget {
             ),
           ],
         ),
-        child: Image.asset(
-          'assets/nav/lapor.png',
-          width: _report,
-          height: _report,
-        ),
+        child: const AppIcon('nav_lapor', size: _report),
       ),
     ),
   );
@@ -457,7 +453,7 @@ class TabBar5 extends StatelessWidget {
                     duration: dur(context, 260),
                     curve: easeOut,
                     scale: on ? 1.08 : 1,
-                    child: Image.asset('assets/nav/$icon.png'),
+                    child: AppIcon('nav_$icon', size: _d - 8),
                   ),
                 ),
                 // Label diukur pada lebar akhir pil, lalu tersingkap saat pil melebar.

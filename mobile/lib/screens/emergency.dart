@@ -80,11 +80,7 @@ class EmergencyScreen extends StatelessWidget {
                       width: 2,
                     ),
                   ),
-                  child: const Icon(
-                    Icons.call_rounded,
-                    size: 38,
-                    color: Colors.white,
-                  ),
+                  child: const AppIcon('call_112', size: 64),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -114,13 +110,10 @@ class EmergencyScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
                     child: Row(
                       children: [
-                        IconTile(
-                          _icons[c.category] ?? Icons.call_rounded,
-                          C.redTint,
-                          C.red,
-                          size: 42,
-                          iconSize: 21,
-                        ),
+                        if (_icons.containsKey(c.category))
+                          AppIcon('call_${c.category}', size: 42)
+                        else
+                          const AppIcon('call_112', size: 42),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(

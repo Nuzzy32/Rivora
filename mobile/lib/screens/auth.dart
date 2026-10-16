@@ -358,7 +358,9 @@ class _ForgotScreenState extends State<ForgotScreen> {
         borderRadius: BorderRadius.circular(36),
         boxShadow: soft(.4, 40, 20, glow),
       ),
-      child: Icon(icon, size: 52, color: Colors.white),
+      child: icon == Icons.mark_email_read_rounded
+          ? const AppIcon('state_email', size: 104)
+          : Icon(icon, size: 52, color: Colors.white),
     ),
   );
 
@@ -637,11 +639,7 @@ class _SignupDoneState extends State<_SignupDone> {
                         shape: BoxShape.circle,
                         boxShadow: soft(.35, 36, 18, C.blue),
                       ),
-                      child: const Icon(
-                        Icons.mark_email_unread_rounded,
-                        size: 56,
-                        color: Colors.white,
-                      ),
+                      child: const AppIcon('state_email', size: 112),
                     ),
                     Positioned(
                       right: 0,

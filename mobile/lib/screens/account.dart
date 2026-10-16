@@ -312,11 +312,7 @@ class AccountScreen extends StatelessWidget {
           child: TextButton.icon(
             onPressed: app.openPrivacy,
             style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-            icon: const Icon(
-              Icons.privacy_tip_outlined,
-              size: 18,
-              color: C.muted,
-            ),
+            icon: const AppIcon('menu_privacy', size: 26),
             label: Text('Kebijakan privasi', style: t(13, w6, C.sub)),
           ),
         ),

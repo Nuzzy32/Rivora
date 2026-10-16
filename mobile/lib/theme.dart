@@ -7,6 +7,34 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'motion.dart';
 
+/// Ikon dekoratif; label aksesibilitas tetap pada tombol atau teks di sebelahnya.
+class AppIcon extends StatelessWidget {
+  final String name;
+  final double size;
+  const AppIcon(this.name, {super.key, this.size = 32});
+  @override
+  Widget build(BuildContext context) => Image.asset(
+    'assets/icons/$name.png',
+    width: size,
+    height: size,
+    fit: BoxFit.contain,
+    excludeFromSemantics: true,
+  );
+}
+
+String? _assetIcon(IconData icon) => switch (icon) {
+  Icons.add_location_alt_rounded => 'menu_watch',
+  Icons.notifications_rounded ||
+  Icons.notifications_off_rounded => 'menu_notif',
+  Icons.history_rounded => 'menu_history',
+  Icons.menu_book_rounded => 'menu_guide',
+  Icons.privacy_tip_outlined => 'menu_privacy',
+  Icons.night_shelter_rounded => 'layer_posko',
+  Icons.search_rounded => 'empty_search',
+  Icons.cloud_off_rounded => 'state_offline',
+  _ => null,
+};
+
 /// Warna dari desain Claude Design (SIGAP Banjir.dc.html).
 class C {
   static const ink = Color(0xFF1A1D26);
@@ -371,7 +399,10 @@ class Btn extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 20, color: fg),
+            if (icon == Icons.cloud_off_rounded)
+              const AppIcon('state_offline', size: 28)
+            else
+              Icon(icon, size: 20, color: fg),
             const SizedBox(width: 8),
           ],
           Text(text, style: t(fontSize, w6, fg)),
@@ -472,7 +503,9 @@ class IconTile extends StatelessWidget {
       gradient: gradient,
       borderRadius: BorderRadius.circular(radius),
     ),
-    child: Icon(icon, size: iconSize, color: fg),
+    child: _assetIcon(icon) != null
+        ? AppIcon(_assetIcon(icon)!, size: size)
+        : Icon(icon, size: iconSize, color: fg),
   );
 }
 
@@ -530,7 +563,10 @@ class Note extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (icon != null) ...[
-          Icon(icon, size: 20, color: fg),
+          if (icon == Icons.cloud_off_rounded)
+            const AppIcon('state_offline', size: 28)
+          else
+            Icon(icon, size: 20, color: fg),
           const SizedBox(width: 10),
         ],
         Expanded(
@@ -574,7 +610,10 @@ class EmptyCard extends StatelessWidget {
     ),
     child: Column(
       children: [
-        Icon(icon, size: 38, color: iconColor),
+        if (_assetIcon(icon) != null)
+          AppIcon(_assetIcon(icon)!, size: 80)
+        else
+          Icon(icon, size: 38, color: iconColor),
         const SizedBox(height: 8),
         Text(title, textAlign: TextAlign.center, style: t(16, w6)),
         const SizedBox(height: 8),

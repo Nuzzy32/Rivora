@@ -181,7 +181,10 @@ class HourlyCard extends StatelessWidget {
           if (at.isAfter(a) && !at.isAfter(b)) {
             items.add((
               top: ev.$2.replaceAll(':', '.'),
-              icon: Icon(ev.$4, size: 26, color: const Color(0xFFFFD36B)),
+              icon: AppIcon(
+                ev.$3 == 'Terbit' ? 'wx_sunrise' : 'wx_sunset',
+                size: 34,
+              ),
               bottom: ev.$3,
             ));
           }
